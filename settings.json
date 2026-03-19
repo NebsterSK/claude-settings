@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(php:*)",
+      "Bash(composer:*)",
+      "Bash(npm:*)",
+      "Bash(echo:*)",
+      "Bash(vendor/bin/pint:*)",
+      "Bash(where:*)",
+      "Bash(ls:*)",
+      "Read"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    }
+  },
+  "autoUpdatesChannel": "latest"
+}
