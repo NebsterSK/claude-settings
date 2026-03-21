@@ -11,6 +11,18 @@
       "Bash(vendor/bin/pint:*)",
       "Bash(where:*)",
       "Bash(ls:*)",
+      "Bash(git:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(vendor/bin/phpstan:*)",
+      "Bash(vendor/bin/phpunit:*)",
+      "Bash(npx:*)",
       "Read"
     ],
     "defaultMode": "acceptEdits"
