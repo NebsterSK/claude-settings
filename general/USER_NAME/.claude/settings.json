@@ -21,7 +21,6 @@
       "Bash(cp:*)",
       "Bash(mv:*)",
       "Bash(vendor/bin/phpstan:*)",
-      "Bash(vendor/bin/phpunit:*)",
       "Bash(npx:*)",
       "Read"
     ],
