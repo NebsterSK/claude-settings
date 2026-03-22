@@ -1,17 +1,28 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch",
-      "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:github.com)",
-      "Bash(php:*)",
+      "Bash(cat:*)",
       "Bash(composer:*)",
-      "Bash(npm:*)",
+      "Bash(cp:*)",
       "Bash(echo:*)",
+      "Bash(git:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(php:*)",
+      "Bash(rg:*)",
+      "Bash(tail:*)",
+      "Bash(vendor/bin/phpstan:*)",
       "Bash(vendor/bin/pint:*)",
       "Bash(where:*)",
-      "Bash(ls:*)",
-      "Read"
+      "Read",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
     ],
     "defaultMode": "acceptEdits"
   },
