@@ -1,0 +1,2 @@
+#!/bin/bash
+exec php /c/Users/Lukas/.config/herd/bin/composer.phar "$@"

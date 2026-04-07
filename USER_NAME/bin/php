@@ -1,0 +1,3 @@
+#!/bin/bash
+PHP_EXE=$(sed -n 's/.*"\(.*php\.exe\)".*/\1/p' /c/Users/Lukas/.config/herd/bin/php.bat | tr -d '\r' | tail -1)
+exec "$(cygpath "$PHP_EXE")" "$@"

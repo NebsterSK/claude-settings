@@ -1,0 +1,3 @@
+#!/bin/bash
+ACTIVE=$(ls -td /c/Users/Lukas/.config/herd/bin/nvm/v*/ 2>/dev/null | head -1)
+exec "$(cygpath "$ACTIVE")/node.exe" "$(cygpath "$ACTIVE")/node_modules/npm/bin/npm-cli.js" "$@"
