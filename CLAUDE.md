@@ -16,7 +16,7 @@ Configuration lives under `USER_NAME/`:
 
 ## How to Use
 
-1. Copy the appropriate profile's `USER_NAME/` contents into your project's user-level Claude config directory
+1. Copy the appropriate profile's `USER_NAME/` contents into your home directory
 2. Place `bin/` wrappers on the system PATH (or the location Claude sources on startup)
 3. Replace `USER_NAME` in the path with the actual system username
 

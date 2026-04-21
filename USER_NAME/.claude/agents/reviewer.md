@@ -39,6 +39,10 @@ You are a senior code reviewer and quality gatekeeper. You review all code befor
 - Workarounds that should be proper fixes
 - Outdated patterns when newer, cleaner alternatives exist
 
+### Static Analysis (Larastan)
+- **Run the analyzer, don't just eyeball types**: execute `./vendor/bin/phpstan analyse` (respecting the project's `phpstan.neon` level) and treat any new violation as blocking. Static review without running the tool misses most of what Larastan catches.
+- **Model/builder pitfalls**: watch for untyped custom scopes, macros, and factory states — these commonly silently reintroduce `mixed` into otherwise-typed chains.
+
 ### Performance
 - N+1 query problems
 - Unnecessary database queries or API calls
