@@ -4,23 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This repo stores reusable Claude Code configuration files (settings, agents, bin wrappers) meant to be copied into target projects. It is **not** an application — there is no build, test, or lint step.
+This repo stores reusable Claude Code configuration files (agents, slash commands, bin wrappers) meant to be copied into target projects. It is **not** an application — there is no build, test, or lint step.
+
+## Working in this repo
+
+- **Never run git actions unless explicitly asked.** Do not `commit`, `add`, `push`, `branch`, `checkout`, `reset`, or any other git command on your own — not even to "save progress" or after finishing a change. Make the file edits and stop; the user handles all git operations themselves and will ask when they want one.
+- Edits are config/prose, not code — there is nothing to build, run, or test. Keep changes tight and within the file the user pointed at.
 
 ## Repository Structure
 
-Configuration lives under `USER_NAME/`:
+Configuration lives under `USER_NAME/` (replace `USER_NAME` with the real system username when installing):
 
-- `.claude/settings.json` — Marketplace config and update channel settings
-- `.claude/agents/` — Four specialized subagents: Developer (full-stack VILT), Designer (UI/UX), Reviewer (code quality), SEO (on-page SEO)
-- `bin/` — Cross-platform wrapper scripts (shell + `.cmd`) for Laravel Herd's PHP 8.5, Composer, Node, and npm
+- `.claude/agents/` — specialized subagents:
+  - **Reviewer** — senior code reviewer / quality gatekeeper; audits security, bugs, tech debt, performance, testing, and accessibility before production.
+  - **SEO** — on-page and technical SEO.
+- `.claude/commands/` — custom slash commands:
+  - **`/review`** — overrides the built-in `/review`. Dispatches the change set to the Reviewer subagent, relays findings, then triages them interactively one finding at a time, applying accepted fixes via background fixer agents.
+- `bin/` — cross-platform wrapper scripts (shell + `.cmd`) for Laravel Herd's PHP, Composer, Node, and npm.
 
 ## How to Use
 
-1. Copy the appropriate profile's `USER_NAME/` contents into your home directory
-2. Place `bin/` wrappers on the system PATH (or the location Claude sources on startup)
-3. Replace `USER_NAME` in the path with the actual system username
+1. Copy the profile's `USER_NAME/` contents into your home directory.
+2. Place `bin/` wrappers on the system PATH (or the location Claude sources on startup).
+3. Replace `USER_NAME` in the path with the actual system username.
 
 ## Key Details
 
-- **Laravel Herd**: The `bin/` wrappers delegate to Herd-managed binaries (`php85`, `composer.phar`, Node v25.2.0). Update paths inside the wrappers if Herd versions change.
-- **Agent cooperation model**: The four agents follow a defined workflow — Designer designs first, Developer implements end-to-end (Laravel + Vue + Inertia + Tailwind), SEO advises on markup, Reviewer approves before shipping.
+- **Laravel Herd**: the `bin/` wrappers delegate to Herd-managed binaries (PHP, `composer.phar`, Node). Update the paths inside the wrappers if Herd versions change.
+- **Framework-agnostic frontend**: the Reviewer targets a Laravel backend but stays agnostic across frontend stacks (Vue, Livewire, React) — don't reintroduce stack-specific assumptions into its checklist.
