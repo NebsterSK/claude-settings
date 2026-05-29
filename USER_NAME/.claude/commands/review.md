@@ -2,83 +2,64 @@
 description: Dispatch a thorough code review to the Reviewer subagent (overrides the built-in /review)
 ---
 
-You are the dispatcher, not the reviewer. Your job is to gather the context, delegate the actual review to the **Reviewer** subagent, and relay its findings to the user. Do NOT produce the review yourself.
+You are the dispatcher, not the reviewer. Gather context, delegate the review to the **Reviewer** subagent, relay its findings, and triage them with the user. Do NOT produce the review yourself.
 
 ## Step 1 — Determine what to review
 
-Look at `$ARGUMENTS` (anything the user typed after `/review`):
+From `$ARGUMENTS`:
+- **`base=<branch>`** — review the current branch against that base.
+- **empty** — review against `develop` if it exists locally, else `main` (detect via `git rev-parse --verify`).
 
-- **If `base=<branch>` (e.g. `base=develop`)**: review the current branch against that base.
-- **If empty**: review the current branch against `develop` if it exists locally, otherwise against `main`. (Detect via `git rev-parse --verify develop` / `git rev-parse --verify main`.)
-
-Collect these facts before delegating:
-- The base branch (for local reviews).
-- `git diff <base>..HEAD --stat` output — for the scope summary.
-- `git log <base>..HEAD --oneline` output — for the commit trail.
-- The project's `CLAUDE.md` conventions (read it if it exists).
+Collect before delegating: the base branch, `git diff <base>..HEAD --stat`, `git log <base>..HEAD --oneline`, and the project's `CLAUDE.md` conventions.
 
 ## Step 2 — Delegate to the Reviewer subagent
 
 Use the Agent tool with `subagent_type: "Reviewer"`. Write a self-contained prompt that:
+1. States the change set (a sentence or two + the stat output).
+2. Lists the project conventions to enforce (copy relevant `CLAUDE.md` sections — auth facade, `Log` discipline, flash-message patterns, FK defaults, etc.).
+3. Points at the highest-risk files from the diff stat.
+4. Tells the Reviewer to produce its numbered findings in its standard format.
 
-1. States what the change set is (one or two sentences + the stat output).
-2. Lists the project conventions the Reviewer should enforce (copy the relevant sections from `CLAUDE.md` — auth facade usage, `Log::info` / `Log::error` discipline, flash-message patterns, foreign-key defaults, etc.).
-3. Points at the files with the most risk based on the diff stat.
-4. Instructs the Reviewer to produce its numbered findings in its standard format.
-
-Do not inline tip the Reviewer with your own opinions — it should reach findings independently.
+Do not tip the Reviewer with your own opinions — it should reach findings independently.
 
 ## Step 3 — Relay findings
 
-Once the Reviewer returns, surface its full report to the user. Group by severity as the Reviewer did. Do not re-review or contradict the Reviewer; you may add a one-line suggestion at the end about which blocking items to fix first if that is helpful.
+Surface the full report, grouped by severity as the Reviewer did. Do not re-review or contradict it; optionally add one line on which blocking items to fix first.
 
-## Step 4 - Triage findings interactively
+## Step 4 — Triage one finding at a time, fix in the background
 
-After relaying the Reviewer's report, do not stop. Triage every substantive
-finding (Critical / High / Medium and any non-trivial Low) with the user via
-the AskUserQuestion tool.
+Triage every substantive finding (Critical / High / Medium and any non-trivial Low) via `AskUserQuestion`, **one finding per call** (never batch), in severity order. The fix for the finding just decided runs in the background while the user reads the next one.
 
-### Pattern
+**The pipeline.** When the user picks **Fix** (or **Fix (option N)**) for finding N, issue **two tool calls in the same turn**:
+1. An `Agent` call with `run_in_background: true` that applies the fix (see below) — returns immediately; do **not** wait for it.
+2. The `AskUserQuestion` for finding N+1.
 
-Group findings into batches of up to 4 (the tool's per-call limit). Keep
-related items together, e.g. all Nits in one batch, all Mediums in
-another. Order batches by severity, most serious first.
+So fixer N edits while the user decides N+1. Never block on a fixer before asking the next question. **Ignore** defers the finding and asks the next immediately. **Explain** and **Chat** have no fix to dispatch, so the pipeline pauses: handle the conversation, then re-ask the *same* finding.
 
-For each batch, call **AskUserQuestion** once with one question per finding.
-Present the options below.
+**Concurrency safety.** Background fixers share one working directory, so two editing the same file will clobber each other. Map each finding to its file(s); if an in-flight fixer already touches one, wait for it to finish before dispatching this one (you'll be notified) — but still ask the next question immediately. Only disjoint-file fixers run concurrently.
 
-When the batch returns, act on every answer in order before opening the
-next batch.
+**Dispatching a fixer.** Use the `Agent` tool, `subagent_type: "general-purpose"`, `run_in_background: true`. It has none of this conversation's context and the findings are terse, so make the prompt self-contained:
+1. Finding number, file, line, the issue, and the exact recommended fix (and which option, if several).
+2. The relevant `CLAUDE.md` conventions.
+3. Hard scope: "Edit **only** `<file>`. Apply only this fix — no unrelated changes, refactors, or reformatting."
+4. Return a one-line summary of what changed, or a one-line reason if it couldn't safely apply.
 
-After all findings are resolved, end with a single status table
-(? fixed / ? ignored / ? deferred) summarising what was done and what
-remains.
+**Options per finding:**
+- **Fix** — apply the recommended fix (dispatched to a background fixer).
+- **Fix (option N)** — when the Reviewer gave multiple paths, list each labelled by trade-off (e.g. "Fix server-side copy" vs. "Surface failure with toast").
+- **Chat** — open-ended discussion; reply, let the user respond, continue until they signal a decision ("fix it" / "ignore" / "option 2"), then act.
+- **Explain** — one-shot deep dive into root cause, data flow, blast radius; then re-ask the same finding with Fix / Chat / Ignore.
+- **Ignore** — leave as-is; capture in the final summary so it isn't lost.
 
-### Options to present per finding
+Go straight to the first finding — do not ask whether to triage. Each option is a concrete action, never a plan-approval meta-question.
 
-- Fix - apply the recommended fix immediately.
-- Fix (option N) - when the Reviewer surfaced multiple fix paths, list
-each as its own option labelled by the trade-off (e.g. "Fix server-side
-copy" vs. "Fix surface failure with toast").
-- Chat about it - open-ended discussion. Reply with analysis or follow-up
-questions, let the user respond, and continue until they signal a decision
-("fix it" / "ignore" / "do option 2"). Only then act. Use this when the
-user wants to think out loud or pressure-test the recommendation.
-- Explain - one-shot deep dive into root cause, data flow, blast radius.
-Then re-ask the same finding with Fix / Chat / Ignore as the remaining
-options. Use this when the user just needs more context to decide.
-- Ignore - leave as-is. Capture the deferred item in the final summary so
-it isn't lost.
-
-Do not ask whether to triage at all, go straight to the first batch. Do not
-phrase any option as a meta-question about plan approval; each option is a
-concrete action you will take.
+**Closing out.** After the last finding is decided and dispatched, wait for all in-flight fixers to report. End with a single status table marking each finding **fixed / ignored / deferred / failed**, with each fixer's one-line summary and a note on any fix that couldn't be applied.
 
 ## Do not
 
-- Do not produce the review yourself — always delegate.
+- Do not produce the review yourself — always delegate to the Reviewer.
 - Do not skip reading `CLAUDE.md` before delegating.
-- Do not silently substitute a different subagent (e.g. `general-purpose`) if `Reviewer` is unavailable. If the Reviewer agent is missing, stop and tell the user their `~/.claude/agents/reviewer.md` is not loading.
+- Do not substitute another subagent for the **Reviewer** in Step 2. If `Reviewer` is unavailable, stop and tell the user their `~/.claude/agents/reviewer.md` is not loading. (This does not apply to the Step 4 fixers, which are intentionally `general-purpose`.)
 
 ## Arguments
 
