@@ -30,6 +30,8 @@ Surface the full report, grouped by severity as the Reviewer did. Do not re-revi
 
 Triage every substantive finding (Critical / High / Medium and any non-trivial Low) via `AskUserQuestion`, **one finding per call** (never batch), in severity order. The fix for the finding just decided runs in the background while the user reads the next one.
 
+Each fixer gets its own brief under `.claude/review-briefs/` (gitignored per project). Don't write them up front — write each one lazily, in the same turn you dispatch its fixer, so only Fix'd findings get a brief and any Explain/Chat decision can be folded in.
+
 **The pipeline.** When the user picks **Fix** (or **Fix (option N)**) for finding N, issue **two tool calls in the same turn**:
 1. An `Agent` call with `run_in_background: true` that applies the fix (see below) — returns immediately; do **not** wait for it.
 2. The `AskUserQuestion` for finding N+1.
@@ -38,11 +40,12 @@ So fixer N edits while the user decides N+1. Never block on a fixer before askin
 
 **Concurrency safety.** Background fixers share one working directory, so two editing the same file will clobber each other. Map each finding to its file(s); if an in-flight fixer already touches one, wait for it to finish before dispatching this one (you'll be notified) — but still ask the next question immediately. Only disjoint-file fixers run concurrently.
 
-**Dispatching a fixer.** Use the `Agent` tool, `subagent_type: "general-purpose"`, `run_in_background: true`. It has none of this conversation's context and the findings are terse, so make the prompt self-contained:
-1. Finding number, file, line, the issue, and the exact recommended fix (and which option, if several).
-2. The relevant `CLAUDE.md` conventions.
-3. Hard scope: "Edit **only** `<file>`. Apply only this fix — no unrelated changes, refactors, or reformatting."
-4. Return a one-line summary of what changed, or a one-line reason if it couldn't safely apply.
+**Dispatching a fixer.** First write the finding's brief to `.claude/review-briefs/finding-<N>.md` (create the `.claude/review-briefs/` directory first if it doesn't exist): a few sentences of context (what's wrong, what the fix should achieve, plus any decision from an Explain/Chat exchange), the exact file(s) and line(s) to change, and which fix option was chosen if there were several. No project conventions — the fixer reads `CLAUDE.md` itself if it needs them.
+
+Then spawn the fixer with the `Agent` tool, `subagent_type: "general-purpose"`, `run_in_background: true`. It has none of this conversation's context, so the prompt must point it at everything:
+1. Read `.claude/review-briefs/finding-<N>.md` for the task, and `CLAUDE.md` for conventions if needed.
+2. Hard scope: "Edit **only** the file(s) named in the brief. Apply only this fix — no unrelated changes, refactors, or reformatting."
+3. Return a one-line summary of what changed, or a one-line reason if it couldn't safely apply.
 
 **Options per finding:**
 - **Fix** — apply the recommended fix (dispatched to a background fixer).
@@ -53,7 +56,7 @@ So fixer N edits while the user decides N+1. Never block on a fixer before askin
 
 Go straight to the first finding — do not ask whether to triage. Each option is a concrete action, never a plan-approval meta-question.
 
-**Closing out.** After the last finding is decided and dispatched, wait for all in-flight fixers to report. End with a single status table marking each finding **fixed / ignored / deferred / failed**, with each fixer's one-line summary and a note on any fix that couldn't be applied.
+**Closing out.** After the last finding is decided and dispatched, wait for all in-flight fixers to report — only then delete the `.claude/review-briefs/` directory (fixers still need their briefs while running). End with a single status table marking each finding **fixed / ignored / deferred / failed**, with each fixer's one-line summary and a note on any fix that couldn't be applied.
 
 ## Do not
 
