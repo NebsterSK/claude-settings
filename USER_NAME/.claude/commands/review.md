@@ -28,7 +28,9 @@ Surface the full report, grouped by severity as the Reviewer did. Do not re-revi
 
 ## Step 4 — Triage one finding at a time, fix in the background
 
-Triage every substantive finding (Critical / High / Medium and any non-trivial Low) via `AskUserQuestion`, **one finding per call** (never batch), in severity order. The fix for the finding just decided runs in the background while the user reads the next one.
+If the Reviewer reported no issues, relay its one-line all-clear and stop — there's nothing to triage.
+
+Otherwise triage every substantive finding (anything the Reviewer marked **critical** or **warning**, plus any non-trivial **suggestion**) via `AskUserQuestion`, **one finding per call** (never batch), in severity order. The fix for the finding just decided runs in the background while the user reads the next one.
 
 **Keep the hot path empty.** The lag the user feels is the gap between answering finding N and seeing finding N+1 — so do *nothing slow* in that gap. No brief files, no context-gathering reads, no prose. The only work between the answer and the next question is one background-fixer spawn with an inline prompt. Everything else (reading the file, understanding surroundings) is the fixer's job, done in the background while the user reads N+1.
 
@@ -38,7 +40,7 @@ Triage every substantive finding (Critical / High / Medium and any non-trivial L
 
 So fixer N edits while the user decides N+1. Never block on a fixer before asking the next question. **Ignore** defers the finding and asks the next immediately. **Explain** and **Chat** have no fix to dispatch, so the pipeline pauses: handle the conversation, then re-ask the *same* finding.
 
-**Concurrency safety.** Background fixers share one working directory, so two editing the same file will clobber each other. Map each finding to its file(s); if an in-flight fixer already touches one, wait for it to finish before dispatching this one (you'll be notified) — but still ask the next question immediately. Only disjoint-file fixers run concurrently.
+**Concurrency safety.** Background fixers share one working directory, so two editing the same file will clobber each other. Keep a **per-file queue**: map each finding to its file(s), and never run two fixers on the same file at once. If a file is already being fixed, enqueue the new fixer instead of dispatching it — then ask the next question immediately (never make the user wait). On each fixer-completion notification, dispatch the next queued fixer for that file. Only disjoint-file fixers run concurrently.
 
 **Dispatching a fixer.** Spawn the `Agent` tool, `subagent_type: "Fixer"`, `run_in_background: true`. The Fixer agent already carries all the standing instructions (read the file itself, stay in scope, report in one line), so the prompt is just the finding data you already have from the Reviewer's report — keep it minimal so there's almost nothing to generate before the next question:
 - The finding: number, file, line, the issue, the recommended fix (and which option, if several) — quote the Reviewer's lines, don't re-derive them.
@@ -46,7 +48,7 @@ So fixer N edits while the user decides N+1. Never block on a fixer before askin
 
 That's it. No scope boilerplate, no instructions on how to work — those live in the Fixer agent.
 
-**Options per finding:**
+**Options per finding.** In each `AskUserQuestion`, put the recommended action first and label it `(Recommended)` — for critical/warning findings that's **Fix**.
 - **Fix** — apply the recommended fix (dispatched to a background fixer).
 - **Fix (option N)** — when the Reviewer gave multiple paths, list each labelled by trade-off (e.g. "Fix server-side copy" vs. "Surface failure with toast").
 - **Chat** — open-ended discussion; reply, let the user respond, continue until they signal a decision ("fix it" / "ignore" / "option 2"), then act.
@@ -55,7 +57,10 @@ That's it. No scope boilerplate, no instructions on how to work — those live i
 
 Go straight to the first finding — do not ask whether to triage. Each option is a concrete action, never a plan-approval meta-question.
 
-**Closing out.** After the last finding is decided and dispatched, wait for all in-flight fixers to report. End with a single status table marking each finding **fixed / ignored / deferred / failed**, with each fixer's one-line summary and a note on any fix that couldn't be applied.
+**Closing out.** After the last finding is decided and dispatched, wait for all in-flight fixers to report, then:
+1. **Verify with scoped tests.** Run only the tests covering the changed code (the touched classes' test files / the relevant suite), never the whole suite. Do **not** run Larastan / ESLint / Pint / Prettier — the user runs those manually before the PR. If a test fails because of a fix, surface it and re-dispatch that fixer with the failure, or hand it back to the user.
+2. **Handle failed or partial fixes.** For any finding a fixer couldn't fully apply — especially blocking (critical/warning) ones — surface it prominently, don't bury it in the table. Offer to re-dispatch it with more context or a higher-effort Opus Fixer, or hand it back to the user.
+3. **Summarize.** End with a single status table marking each finding **fixed / ignored / deferred / failed**, with each fixer's one-line summary and the scoped-test result.
 
 ## Do not
 
