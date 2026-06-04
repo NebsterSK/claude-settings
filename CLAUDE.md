@@ -17,6 +17,7 @@ Configuration lives under `USER_NAME/` (replace `USER_NAME` with the real system
 
 - `.claude/agents/` — specialized subagents:
   - **Reviewer** — senior code reviewer / quality gatekeeper; audits security, bugs, tech debt, performance, testing, and accessibility before production.
+  - **Fixer** — applies a single scoped fix from a review finding; edits only the named file, no unrelated changes, reports in one line. Spawned in parallel by `/review`.
   - **SEO** — on-page and technical SEO.
 - `.claude/commands/` — custom slash commands:
   - **`/review`** — overrides the built-in `/review`. Dispatches the change set to the Reviewer subagent, relays findings, then triages them interactively one finding at a time, applying accepted fixes via background fixer agents.
