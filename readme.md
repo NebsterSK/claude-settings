@@ -1,6 +1,6 @@
 # Nebster's Claude Code Plugin
 
-A [Claude Code](https://claude.ai/code) **plugin marketplace** shipping the `nebster` plugin — specialized subagents and slash commands. Install once and Claude Code keeps them up to date from GitHub automatically.
+A [Claude Code](https://claude.ai/code) **plugin marketplace** shipping the `nebster` plugin — specialized subagents and slash commands. Install once and — with auto-update enabled — Claude Code keeps them up to date from GitHub.
 
 ## Install
 
@@ -68,5 +68,5 @@ claude-settings/
 ## Notes
 
 - The Reviewer targets a Laravel backend but stays **framework-agnostic on the frontend** (Vue, Livewire, React).
-- `/nebster:qa` assumes a Laravel + JS/TS project with `composer larastan`, `composer pint`, `npm run lint`, and `npm run prettier` scripts. Adjust to match your tooling.
+- `/nebster:qa` assumes a Laravel + JS/TS project with `composer larastan`, `composer pint`, `npm run lint`, `npm run prettier`, and `npm run types` scripts. Adjust to match your tooling.
 - Validate changes before pushing with `claude plugin validate .`.

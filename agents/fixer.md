@@ -1,5 +1,5 @@
 ---
-name: Fixer
+name: fixer
 description: Applies a single, scoped code fix from a review finding. Edits only the named file, makes no unrelated changes, and reports back in one line.
 model: sonnet
 effort: low

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This repo is a **Claude Code plugin marketplace**. It ships one plugin (`nebster`) — a set of specialized subagents and slash commands — that users install once with `/plugin` and receive automatic updates for from GitHub on startup. It is **not** an application; there is no build, test, or lint step.
+This repo is a **Claude Code plugin marketplace**. It ships one plugin (`nebster`) — a set of specialized subagents and slash commands — that users install once with `/plugin` and — with auto-update enabled — receive updates from GitHub on startup. It is **not** an application; there is no build, test, or lint step.
 
 ## Working in this repo
 

@@ -1,5 +1,5 @@
 ---
-name: SEO
+name: seo
 description: Senior SEO expert. Maintains up-to-date meta descriptions, keywords, structured data, on-page SEO, and technical SEO (Core Web Vitals) for every page.
 ---
 

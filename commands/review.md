@@ -1,5 +1,5 @@
 ---
-description: Dispatch a thorough code review to the Reviewer subagent (overrides the built-in /review)
+description: Dispatch a thorough code review to the Reviewer subagent
 ---
 
 You are the dispatcher, not the reviewer. Gather context, delegate the review to the **Reviewer** subagent, relay its findings, and triage them with the user. Do NOT produce the review yourself.
@@ -14,7 +14,7 @@ Collect before delegating: the base branch, `git diff <base>..HEAD --stat`, `git
 
 ## Step 2 — Delegate to the Reviewer subagent
 
-Use the Agent tool with `subagent_type: "Reviewer"`. Write a self-contained prompt that:
+Use the Agent tool with `subagent_type: "nebster:reviewer"`. Write a self-contained prompt that:
 1. States the change set (a sentence or two + the stat output).
 2. Lists the project conventions to enforce (copy relevant `CLAUDE.md` sections — auth facade, `Log` discipline, flash-message patterns, FK defaults, etc.).
 3. Points at the highest-risk files from the diff stat.
@@ -42,7 +42,7 @@ So fixer N edits while the user decides N+1. Never block on a fixer before askin
 
 **Concurrency safety.** Background fixers share one working directory, so two editing the same file will clobber each other. Keep a **per-file queue**: map each finding to its file(s), and never run two fixers on the same file at once. If a file is already being fixed, enqueue the new fixer instead of dispatching it — then ask the next question immediately (never make the user wait). On each fixer-completion notification, dispatch the next queued fixer for that file. Only disjoint-file fixers run concurrently.
 
-**Dispatching a fixer.** Spawn the `Agent` tool, `subagent_type: "Fixer"`, `run_in_background: true`. The Fixer agent already carries all the standing instructions (read the file itself, stay in scope, report in one line), so the prompt is just the finding data you already have from the Reviewer's report — keep it minimal so there's almost nothing to generate before the next question:
+**Dispatching a fixer.** Spawn the `Agent` tool, `subagent_type: "nebster:fixer"`, `run_in_background: true`. The Fixer agent already carries all the standing instructions (read the file itself, stay in scope, report in one line), so the prompt is just the finding data you already have from the Reviewer's report — keep it minimal so there's almost nothing to generate before the next question:
 - The finding: number, file, line, the issue, the recommended fix (and which option, if several) — quote the Reviewer's lines, don't re-derive them.
 - Any decision from an Explain/Chat exchange on this finding — one line, only if it happened.
 
@@ -58,7 +58,7 @@ The four options, in order:
 - **Chat** — open-ended discussion; reply, let the user respond, continue until they signal a decision ("fix it" / "ignore" / "option 2"), then act.
 - **Ignore** — leave as-is; capture in the final summary so it isn't lost. **Always present.**
 
-**When the Reviewer gave multiple fix paths**, the slots are Fix (option 1), Fix (option 2), Explain, Ignore — name each fix path by its trade-off (e.g. "Fix server-side copy" vs. "Surface failure with toast"). Chat then drops out of the explicit list (it stays reachable via "Other", and any option can lead into discussion). Explain and Ignore still keep their slots.
+**When the Reviewer gave multiple fix paths**, the slots are Fix (option 1), Fix (option 2), Explain, Ignore — name each fix path by its trade-off (e.g. "Fix server-side copy" vs. "Surface failure with toast"). Chat then drops out of the explicit list (it stays reachable via "Other", and any option can lead into discussion). Explain and Ignore still keep their slots. If the Reviewer offered 3+ fix paths, keep only the top two as explicit Fix options and fold the rest into "Other" (mention them by name in the question text so they're not hidden, and they remain reachable via Chat) — Explain and Ignore never lose their slots regardless of how many fix paths exist.
 
 Go straight to the first finding — do not ask whether to triage. Each option is a concrete action, never a plan-approval meta-question.
 
@@ -71,7 +71,7 @@ Go straight to the first finding — do not ask whether to triage. Each option i
 
 - Do not produce the review yourself — always delegate to the Reviewer.
 - Do not skip reading `CLAUDE.md` before delegating.
-- Do not substitute another subagent for the **Reviewer** in Step 2 or the **Fixer** in Step 4. If either is unavailable, stop and tell the user their `~/.claude/agents/reviewer.md` or `~/.claude/agents/fixer.md` is not loading.
+- Do not substitute another subagent for the **Reviewer** in Step 2 or the **Fixer** in Step 4. If either is unavailable, stop and tell the user the `nebster` plugin's agents aren't loading — have them check the plugin's install/enabled status via `/plugin` and try `/reload-plugins`.
 - Do not omit **Explain** or **Ignore** from any finding's `AskUserQuestion`, and do not batch findings to save option slots. If you can't fit everything in 4 options, drop Chat (it stays reachable via "Other") — never Explain or Ignore.
 
 ## Arguments
