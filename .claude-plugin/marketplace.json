@@ -1,0 +1,14 @@
+{
+  "name": "nebster-claude-settings",
+  "owner": {
+    "name": "Lukas Neuschl",
+    "email": "lukasneuschl@gmail.com"
+  },
+  "description": "Claude Code plugins.",
+  "plugins": [
+    {
+      "name": "nebster",
+      "source": "./"
+    }
+  ]
+}

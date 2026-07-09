@@ -48,12 +48,17 @@ So fixer N edits while the user decides N+1. Never block on a fixer before askin
 
 That's it. No scope boilerplate, no instructions on how to work — those live in the Fixer agent.
 
-**Options per finding.** In each `AskUserQuestion`, put the recommended action first and label it `(Recommended)` — for critical/warning findings that's **Fix**.
-- **Fix** — apply the recommended fix (dispatched to a background fixer).
-- **Fix (option N)** — when the Reviewer gave multiple paths, list each labelled by trade-off (e.g. "Fix server-side copy" vs. "Surface failure with toast").
+**Options per finding.** `AskUserQuestion` allows **at most 4 options** (a fifth, "Other", is always added automatically — do not spend a slot on it). Put the recommended action first and label it `(Recommended)` — for critical/warning findings that's **Fix**.
+
+**Explain and Ignore are mandatory — they must appear in every finding's question and may never be dropped to make room.** This is the whole point of triage: the user must always be able to understand a finding before deciding, and always be able to decline it. If you are over the 4-slot limit, drop or fold *other* options (see below) — never Explain, never Ignore.
+
+The four options, in order:
+- **Fix** — apply the recommended fix (dispatched to a background fixer). *(Recommended for critical/warning.)*
+- **Explain** — one-shot deep dive into root cause, data flow, blast radius; then re-ask the *same* finding with the same options. **Always present.**
 - **Chat** — open-ended discussion; reply, let the user respond, continue until they signal a decision ("fix it" / "ignore" / "option 2"), then act.
-- **Explain** — one-shot deep dive into root cause, data flow, blast radius; then re-ask the same finding with Fix / Chat / Ignore.
-- **Ignore** — leave as-is; capture in the final summary so it isn't lost.
+- **Ignore** — leave as-is; capture in the final summary so it isn't lost. **Always present.**
+
+**When the Reviewer gave multiple fix paths**, the slots are Fix (option 1), Fix (option 2), Explain, Ignore — name each fix path by its trade-off (e.g. "Fix server-side copy" vs. "Surface failure with toast"). Chat then drops out of the explicit list (it stays reachable via "Other", and any option can lead into discussion). Explain and Ignore still keep their slots.
 
 Go straight to the first finding — do not ask whether to triage. Each option is a concrete action, never a plan-approval meta-question.
 
@@ -67,6 +72,7 @@ Go straight to the first finding — do not ask whether to triage. Each option i
 - Do not produce the review yourself — always delegate to the Reviewer.
 - Do not skip reading `CLAUDE.md` before delegating.
 - Do not substitute another subagent for the **Reviewer** in Step 2 or the **Fixer** in Step 4. If either is unavailable, stop and tell the user their `~/.claude/agents/reviewer.md` or `~/.claude/agents/fixer.md` is not loading.
+- Do not omit **Explain** or **Ignore** from any finding's `AskUserQuestion`, and do not batch findings to save option slots. If you can't fit everything in 4 options, drop Chat (it stays reachable via "Other") — never Explain or Ignore.
 
 ## Arguments
 

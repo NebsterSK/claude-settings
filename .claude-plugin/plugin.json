@@ -1,0 +1,10 @@
+{
+  "name": "nebster",
+  "description": "Nebster's Claude Code toolkit — Reviewer, Fixer, and SEO subagents plus /review and /qa commands.",
+  "author": {
+    "name": "Lukas Neuschl",
+    "email": "lukasneuschl@gmail.com"
+  },
+  "homepage": "https://github.com/NebsterSK/claude-settings",
+  "repository": "https://github.com/NebsterSK/claude-settings"
+}
