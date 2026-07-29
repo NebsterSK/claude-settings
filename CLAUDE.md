@@ -23,7 +23,7 @@ This repo is both the marketplace and the plugin (plugin lives at the repo root)
   - **Fixer** — applies a single scoped fix from a review finding; edits only the named file, no unrelated changes, reports in one line. Spawned in parallel by the review command.
   - **SEO** — on-page and technical SEO.
 - `commands/` — custom slash commands (namespaced under the plugin, e.g. `/nebster:review`):
-  - **`/nebster:review`** — dispatches the change set to the Reviewer subagent, relays findings, then triages them interactively one finding at a time, applying accepted fixes via background Fixer agents.
+  - **`/nebster:review`** — dispatches the change set to the Reviewer subagent, relays findings, auto-fixes Low findings the Reviewer flagged as safe (background Fixers, no sign-off), then triages the rest (Critical/High/Medium, capped at 6) interactively one finding at a time, applying accepted fixes via background Fixer agents. All fixers share one unified per-file queue.
   - **`/nebster:qa`** — code-style and static-analysis gate. Runs Larastan, Pint, ESLint, and Prettier and fixes every issue they surface. Does **not** run the test suite.
 
 ## Key Details

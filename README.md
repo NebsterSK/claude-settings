@@ -49,7 +49,7 @@ Plugin commands are namespaced under the plugin name.
 
 | Command | Purpose |
 | --- | --- |
-| **`/nebster:review`** | Dispatches the change set to the Reviewer subagent, relays findings, then triages them interactively one finding at a time — applying accepted fixes via background Fixer agents. |
+| **`/nebster:review`** | Dispatches the change set to the Reviewer subagent, relays findings, auto-fixes the safe Low-severity ones in the background (no sign-off), then triages the rest (Critical/High/Medium, capped at 6) interactively one finding at a time — applying accepted fixes via background Fixer agents on a shared per-file queue. |
 | **`/nebster:qa`** | Code-style and static-analysis gate. Runs Larastan, Pint, ESLint, and Prettier and fixes every issue they surface. Does **not** run the test suite. |
 
 ## Repository layout

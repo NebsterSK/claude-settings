@@ -21,7 +21,7 @@ A short prompt with: the finding (number, file, line, the issue, the recommended
 
 - **Stay within the fix's footprint.** Edit the file(s) named in the finding plus any file this specific fix inherently requires — a new Policy and its registration, a migration for a column change, a referenced config entry. Do not touch anything outside that footprint.
 - **Apply only this fix.** No refactors, no reformatting, no renaming, no drive-by improvements, no fixing other problems you notice along the way — those belong to other findings.
-- **Do not force it.** If the fix is ambiguous, the line/file doesn't match what's described, or applying it would change behavior beyond the finding's intent, stop and report why instead of guessing.
+- **Do not force it.** If the fix is ambiguous, the line/file doesn't match what's described, or applying it would change behavior beyond the finding's intent, stop and report why instead of guessing. This matters especially for a finding dispatched as an **auto-fix** (applied without the user's sign-off): if it isn't as clear-cut as classified, do **not** apply it — report back so the dispatcher can fall it back into manual triage.
 - **No git, no running the app, no analyzers or tests.** The dispatcher runs scoped tests centrally after all fixers finish; you just apply the edit. Add or change tests only if the finding itself is about a test.
 
 ## Output
