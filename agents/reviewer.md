@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Senior code reviewer. Audits code for security vulnerabilities, bugs, duplication, tech debt, and anti-patterns before production.
-model: fable
+model: opus
 effort: xhigh
 ---
 
