@@ -1,6 +1,6 @@
 # Nebster's Claude Code Plugin
 
-A [Claude Code](https://claude.ai/code) **plugin marketplace** shipping the `nebster` plugin — specialized subagents and slash commands. Install once and — with auto-update enabled — Claude Code keeps them up to date from GitHub.
+A [Claude Code](https://claude.ai/code) **plugin marketplace** shipping the `nebster` plugin — specialized subagents and skills (slash commands). Install once and — with auto-update enabled — Claude Code keeps them up to date from GitHub.
 
 ## Install
 
@@ -40,17 +40,17 @@ Because the plugin ships without a pinned version, every push to this repo is tr
 | Agent | Purpose |
 | --- | --- |
 | **Reviewer** | Senior code reviewer / quality gatekeeper. Audits security, bugs, tech debt, performance, testing, and accessibility before production — and, on a PR, checks the diff against what the PR says it does. |
-| **Fixer** | Applies a single scoped fix from a review finding — edits only the named file, makes no unrelated changes, reports back in one line. Spawned in parallel by the review command. |
+| **Fixer** | Applies a single scoped fix from a review finding — edits only the fix's footprint, adds a covering test for behavior fixes, makes no unrelated changes, reports back in one line. Spawned in parallel by the review command. |
 | **SEO** | On-page and technical SEO — meta descriptions, keywords, structured data, Core Web Vitals. |
 
-### Commands
+### Skills
 
-Plugin commands are namespaced under the plugin name.
+Skills are invoked as slash commands namespaced under the plugin name.
 
-| Command | Purpose |
+| Skill | Purpose |
 | --- | --- |
 | **`/nebster:review`** | Dispatches the change set to the Reviewer subagent and relays its findings. Fixes them interactively on your own work, or reports read-only on someone else's PR — see [Review modes](#review-modes). |
-| **`/nebster:qa`** | Code-style and static-analysis gate. Runs Larastan, Pint, ESLint, and Prettier and fixes every issue they surface. Does **not** run the test suite. |
+| **`/nebster:qa`** | Code-style and static-analysis gate. Runs Larastan, Pint, ESLint, and Prettier and fixes every issue they surface. Does **not** run the test suite. Runs in an isolated subagent and only when you invoke it. |
 
 #### Review modes
 
@@ -58,16 +58,21 @@ Plugin commands are namespaced under the plugin name.
 
 Check the branch out yourself first — the command never runs `gh pr checkout`.
 
-**Fix mode** — your own branch or your own PR. Auto-fixes the safe Low-severity findings in the background (no sign-off), then triages the rest (Critical/High/Medium, capped at 6) one finding at a time, applying accepted fixes via background Fixer agents on a shared per-file queue. Closes with scoped tests and a status table.
+**Fix mode** — your own branch or your own PR. Findings with exactly one obvious fix that restores the code's evident intent (no product-rule, API, schema, or data decision) are auto-fixed in the background at any severity — Medium/Low immediately, Critical/High after a single confirm where you can hold some back. Everything that needs a decision is triaged one finding at a time, uncapped, with accepted fixes applied by background Fixer agents on a shared per-file queue. Closes with scoped tests and a status table.
 
 **Report-only mode** — the PR author isn't you, or you passed `--report-only`. Nothing is edited: no fixers, no commits, no pushes. You get the full report, then an offer to post findings to the PR — you pick which ones, and the payload is shown for confirmation before anything is published. Posts as a plain review comment, never an approval or change request.
 
+Arguments are positional: base branch first, PR second.
+
 ```
-/nebster:review                  # current branch, auto-detects the mode
-/nebster:review base=develop     # diff against a specific base
-/nebster:review pr=1234          # a PR number, or its URL
-/nebster:review --report-only    # force read-only on your own work
+/nebster:review                       # current branch, auto-detects base and mode
+/nebster:review develop               # diff against a specific base
+/nebster:review 1234                  # a PR number or URL (base auto-detected)
+/nebster:review develop 1234          # both
+/nebster:review --report-only         # force read-only on your own work
 ```
+
+The older `base=develop` / `pr=1234` forms still work.
 
 ## Repository layout
 
@@ -79,7 +84,7 @@ claude-settings/
 │   ├── marketplace.json   # marketplace manifest (lists the plugin)
 │   └── plugin.json        # plugin manifest (no version → always latest)
 ├── agents/                # reviewer, fixer, seo
-└── commands/              # review, qa
+└── skills/                # review/SKILL.md, qa/SKILL.md
 ```
 
 ## Notes

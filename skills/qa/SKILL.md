@@ -1,5 +1,16 @@
 ---
+name: qa
 description: Code-style & static-analysis gate — run Pint, Larastan, ESLint, Prettier and fix everything. Does NOT run tests.
+disable-model-invocation: true
+context: fork
+agent: general-purpose
+background: false
+allowed-tools:
+  - Bash(composer larastan*)
+  - Bash(composer pint*)
+  - Bash(npm run lint*)
+  - Bash(npm run prettier*)
+  - Bash(npm run types*)
 ---
 
 Run this project's code-style and static-analysis tools **and fix every issue they surface**. This is the pre-commit quality gate — it does **not** run the test suite (`composer test` is separate).
@@ -18,4 +29,4 @@ Rules:
 - Keep every fix **behavior-preserving**. If a lint/analysis fix would change behavior, stop and flag it instead of applying it.
 - Follow the project's `CLAUDE.md` conventions when fixing.
 - **Do not commit or push** — leave all changes in the working tree for the user to review.
-- Finish with a short summary table: each tool, what it fixed, and its final status.
+- Finish with a short summary table: each tool, what it fixed, and its final status. You run in an isolated subagent — that table is the only thing the user sees, so it must stand on its own (include any behavior-changing fix you stopped on and why).
