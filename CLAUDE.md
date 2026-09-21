@@ -23,6 +23,7 @@ This repo is both the marketplace and the plugin (plugin lives at the repo root)
   - **SEO** — on-page and technical SEO.
 - `skills/<name>/SKILL.md` — skills, invoked as slash commands namespaced under the plugin (`/nebster:review`). The legacy `commands/` directory is deprecated — do not recreate it.
   - **`/nebster:review`** — dispatches the change set to the Reviewer subagent and relays its findings. Runs in one of two modes (see **Review modes** below): **fix mode** on your own work, **report-only mode** on someone else's PR.
+  - **`/nebster:frontend-design`** — 🚧 **WIP, `disable-model-invocation: true`** — UI/UX guidance (hierarchy, color, spacing, depth, dashboards, mobile, motion) distilled from the YouTube transcripts in `_yt/`. Manual invocation only until the WIP banner in its `SKILL.md` is removed; depth lives in `skills/frontend-design/references/*.md`.
   - **`/nebster:qa`** — code-style and static-analysis gate. Runs Larastan, Pint, ESLint, and Prettier and fixes every issue they surface. Does **not** run the test suite. Runs in a forked `general-purpose` subagent (`context: fork`, `background: false`) so the lint noise stays out of the main context, and is `disable-model-invocation` — only the user triggers it.
 
 ## Review modes
