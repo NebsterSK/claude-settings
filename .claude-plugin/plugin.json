@@ -1,6 +1,6 @@
 {
   "name": "nebster",
-  "description": "Nebster's Claude Code toolkit — Reviewer, Fixer, and SEO subagents plus /nebster:review and /nebster:qa skills.",
+  "description": "Nebster's Claude Code toolkit — Reviewer, Fixer, and SEO subagents, /nebster:review and /nebster:qa skills, plus Comrade and Peon output styles.",
   "author": {
     "name": "Lukas Neuschl",
     "email": "lukasneuschl@gmail.com"

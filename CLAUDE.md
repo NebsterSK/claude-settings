@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This repo is a **Claude Code plugin marketplace**. It ships one plugin (`nebster`) — a set of specialized subagents and skills (slash commands) — that users install once with `/plugin` and — with auto-update enabled — receive updates from GitHub on startup. It is **not** an application; there is no build, test, or lint step.
+This repo is a **Claude Code plugin marketplace**. It ships one plugin (`nebster`) — a set of specialized subagents, skills (slash commands), and output styles — that users install once with `/plugin` and — with auto-update enabled — receive updates from GitHub on startup. It is **not** an application; there is no build, test, or lint step.
 
 ## Working in this repo
 
@@ -17,6 +17,7 @@ This repo is both the marketplace and the plugin (plugin lives at the repo root)
 
 - `.claude-plugin/marketplace.json` — marketplace manifest; lists the `nebster` plugin with `source: "./"`.
 - `.claude-plugin/plugin.json` — plugin manifest (name, description, author, repo). No `version` field, on purpose.
+- `output-styles/<name>.md` — persona output styles selectable with `/output-style` (**Comrade** — Soviet servant, **Peon** — Warcraft 3 orc). Both set `keep-coding-instructions: true` and restrict the persona to terminal replies only; never let persona text leak into code, commits, PRs, docs, or any file.
 - `agents/` — specialized subagents:
   - **Reviewer** — senior code reviewer / quality gatekeeper; audits security, bugs, tech debt, performance, testing, and accessibility before production. Also checks the diff against a PR's stated purpose when the command supplies one (goal not met, scope creep, undocumented behavior change).
   - **Fixer** — applies a single scoped fix from a review finding; edits only the fix's footprint, adds/updates the covering test for behavior fixes, no unrelated changes, reports in one line. Spawned in parallel by the review command.

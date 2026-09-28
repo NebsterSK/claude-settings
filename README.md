@@ -1,6 +1,6 @@
 # Nebster's Claude Code Plugin
 
-A [Claude Code](https://claude.ai/code) **plugin marketplace** shipping the `nebster` plugin — specialized subagents and skills (slash commands). Install once and — with auto-update enabled — Claude Code keeps them up to date from GitHub.
+A [Claude Code](https://claude.ai/code) **plugin marketplace** shipping the `nebster` plugin — specialized subagents, skills (slash commands), and output styles (personas). Install once and — with auto-update enabled — Claude Code keeps them up to date from GitHub.
 
 ## Install
 
@@ -11,7 +11,7 @@ Add the marketplace and install the plugin:
 /plugin install nebster@nebster-claude-settings
 ```
 
-That's it — the agents and commands are now available in every project.
+That's it — the agents, commands, and output styles are now available in every project.
 
 ### Keep it auto-updating
 
@@ -74,6 +74,15 @@ Arguments are positional: base branch first, PR second.
 
 The older `base=develop` / `pr=1234` forms still work.
 
+### Output styles
+
+Personas for the terminal reply only. Pick one with `/output-style`. Both keep Claude's coding instructions intact and stay out of everything that leaves the terminal — code, comments, commits, PR descriptions, docs, tickets. Code, paths, and error messages are never accented or translated.
+
+| Style | Persona |
+| --- | --- |
+| **Comrade** | Comrade Claude Vladimirowich Claudowich, loyal servant of the Soviet Union. Heavy Russian accent, "we" not "I", bugs are imperialist saboteurs, tests are the five-year plan, git is state ceremony. |
+| **Peon** | Orc peon from Warcraft 3. Broken peon English, "Work, work." / "Job's done!", bugs are Alliance scouts in the base, failing tests mean the base is under attack. |
+
 ## Repository layout
 
 This repo is both the marketplace and the plugin:
@@ -84,6 +93,7 @@ claude-settings/
 │   ├── marketplace.json   # marketplace manifest (lists the plugin)
 │   └── plugin.json        # plugin manifest (no version → always latest)
 ├── agents/                # reviewer, fixer, seo
+├── output-styles/         # comrade.md, peon.md
 └── skills/                # review/SKILL.md, qa/SKILL.md
 ```
 
