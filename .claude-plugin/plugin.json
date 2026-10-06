@@ -1,10 +1,11 @@
 {
   "name": "nebster",
-  "description": "Nebster's Claude Code toolkit — Reviewer, Fixer, and SEO subagents, /nebster:review and /nebster:qa skills, plus Comrade and Peon output styles.",
+  "description": "Nebster's Claude Code toolkit — Reviewer, Fixer, and SEO subagents, /nebster:review and /nebster:qa skills, Comrade, Peon and Mate output styles, plus a session band mod above the prompt.",
   "author": {
     "name": "Lukas Neuschl",
     "email": "lukasneuschl@gmail.com"
   },
   "homepage": "https://github.com/NebsterSK/claude-settings",
-  "repository": "https://github.com/NebsterSK/claude-settings"
+  "repository": "https://github.com/NebsterSK/claude-settings",
+  "types": "./types/index.d.ts"
 }

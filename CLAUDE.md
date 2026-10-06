@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This repo is a **Claude Code plugin marketplace**. It ships one plugin (`nebster`) — a set of specialized subagents, skills (slash commands), and output styles — that users install once with `/plugin` and — with auto-update enabled — receive updates from GitHub on startup. It is **not** an application; there is no build, test, or lint step.
+This repo is a **Claude Code plugin marketplace**. It ships one plugin (`nebster`) — a set of specialized subagents, skills (slash commands), output styles, and one UI mod — that users install once with `/plugin` and — with auto-update enabled — receive updates from GitHub on startup. It is **not** an application; there is no build step.
 
 ## Working in this repo
 
-- Edits are config/prose, not code — there is nothing to build, run, or test. Keep changes tight.
+- Most edits are config/prose — nothing to build or run. Keep changes tight.
+- The one piece of code is the session band mod (`hooks/register.tsx`). After touching it or `types/`, run `claude plugin validate .` and `claude plugin test .`.
 - **Never add a `version` field to `.claude-plugin/plugin.json`.** Omitting it makes every commit ship as a new version (git SHA), which is what keeps installs auto-updating. A pinned version would freeze users at that release.
 
 ## Repository Structure
@@ -22,6 +23,7 @@ This repo is both the marketplace and the plugin (plugin lives at the repo root)
   - **Reviewer** — senior code reviewer / quality gatekeeper; audits security, bugs, tech debt, performance, testing, and accessibility before production. Also checks the diff against a PR's stated purpose when the command supplies one (goal not met, scope creep, undocumented behavior change).
   - **Fixer** — applies a single scoped fix from a review finding; edits only the fix's footprint, adds/updates the covering test for behavior fixes, no unrelated changes, reports in one line. Spawned in parallel by the review command.
   - **SEO** — on-page and technical SEO.
+- `hooks/` — the **session band** mod: `hooks.json` lists `register.tsx`, a hooks module drawing a band above the prompt (session name from the transcript's latest `custom-title` row, model/effort from `turn.step`, output style from `prompt.compose`, context % from `$.session.usage()`). Its `$.state` contract is `types/index.d.ts` (keys under `nebster`, named in `plugin.json` as `"types"`); tests in `tests/`. Check with `claude plugin validate .` and `claude plugin test .`. `.claude-plugin/types/` is engine-generated and gitignored.
 - `skills/<name>/SKILL.md` — skills, invoked as slash commands namespaced under the plugin (`/nebster:review`). The legacy `commands/` directory is deprecated — do not recreate it.
   - **`/nebster:review`** — dispatches the change set to the Reviewer subagent and relays its findings. Runs in one of two modes (see **Review modes** below): **fix mode** on your own work, **report-only mode** on someone else's PR.
   - **`/nebster:qa`** — code-style and static-analysis gate. Runs Larastan, Pint, ESLint, and Prettier and fixes every issue they surface. Does **not** run the test suite. Runs in a forked `general-purpose` subagent (`context: fork`, `background: false`) so the lint noise stays out of the main context, and is `disable-model-invocation` — only the user triggers it.

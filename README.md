@@ -83,6 +83,10 @@ Personas for the terminal reply only. Pick one with `/output-style`. Both keep C
 | **Comrade** | Comrade Claude Vladimirowich Claudowich, loyal servant of the Soviet Union. Heavy Russian accent, "we" not "I", bugs are imperialist saboteurs, tests are the five-year plan, git is state ceremony. |
 | **Peon** | Orc peon from Warcraft 3. Broken peon English, "Work, work." / "Job's done!", bugs are Alliance scouts in the base, failing tests mean the base is under attack. |
 
+### Session band (mod)
+
+A band above the prompt, on the left: the session name (from `/rename`) in bold, then model, effort and output style, then context used — green below 50%, yellow from 50%, red from 80%. It loads with the plugin; nothing to enable. Source in `hooks/register.tsx`.
+
 ## Repository layout
 
 This repo is both the marketplace and the plugin:
@@ -93,8 +97,11 @@ claude-settings/
 │   ├── marketplace.json   # marketplace manifest (lists the plugin)
 │   └── plugin.json        # plugin manifest (no version → always latest)
 ├── agents/                # reviewer, fixer, seo
+├── hooks/                 # session band mod (hooks.json + register.tsx)
 ├── output-styles/         # comrade.md, peon.md
-└── skills/                # review/SKILL.md, qa/SKILL.md
+├── skills/                # review/SKILL.md, qa/SKILL.md
+├── tests/                 # mod tests (claude plugin test .)
+└── types/                 # mod state contract
 ```
 
 ## Notes
@@ -102,4 +109,4 @@ claude-settings/
 - The Reviewer targets a Laravel backend but stays **framework-agnostic on the frontend** (Vue, Livewire, React).
 - PR context and posting findings need the `gh` CLI, authenticated (`gh auth login`). It's optional — without it `/nebster:review` falls back to a plain diff review.
 - `/nebster:qa` assumes a Laravel + JS/TS project with `composer larastan`, `composer pint`, `npm run lint`, `npm run prettier`, and `npm run types` scripts. Adjust to match your tooling.
-- Validate changes before pushing with `claude plugin validate .`.
+- Validate changes before pushing with `claude plugin validate .` and `claude plugin test .`.
