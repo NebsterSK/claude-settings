@@ -110,7 +110,7 @@ export const register: Register = on => {
 
     const { Box, Text } = $.ui.resolve(e)
     const details = [model, effort, style].filter(Boolean).join(' · ')
-    const level = percent === null ? null : percent >= 80 ? 'red' : percent >= 50 ? 'yellow' : 'green'
+    const level = percent === null ? null : percent >= 85 ? 'red' : percent >= 60 ? 'yellow' : 'green'
 
     return (
       <Box>
