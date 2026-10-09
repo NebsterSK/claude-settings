@@ -85,7 +85,7 @@ Personas for the terminal reply only. Pick one with `/output-style`. Both keep C
 
 ### Session band (mod)
 
-A band above the prompt, on the left: the session name (from `/rename`) in bold, then model, effort and output style, then context used — green below 50%, yellow from 50%, red from 80%. It loads with the plugin; nothing to enable. Source in `hooks/register.tsx`.
+A band above the prompt, under a dim divider: the session name (from `/rename`) in bold, then model, effort and output style, then context used, 5-hour and weekly usage — each green below 60%, yellow from 60%, red from 85%. It loads with the plugin; nothing to enable. Source in `hooks/register.tsx`.
 
 ## Repository layout
 

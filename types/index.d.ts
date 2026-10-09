@@ -3,6 +3,8 @@ export type Info = {
   effort: string | null
   style: string | null
   percent: number | null
+  fiveHour: number | null
+  weekly: number | null
 }
 
 declare module 'claude-code' {

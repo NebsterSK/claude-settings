@@ -9,6 +9,8 @@ const info = atom({ plugin: 'nebster', key: 'info' } as const, {
   effort: null,
   style: null,
   percent: null,
+  fiveHour: null,
+  weekly: null,
 } as Info)
 
 // The latest `/rename` lives in the transcript as a `custom-title` row.
@@ -34,6 +36,19 @@ export const prettyModel = (id: string): string => {
   return `${label} ${major}${minor ? `.${minor}` : ''}`
 }
 
+// Green, then yellow from 60%, red from 85%.
+export const usageColor = (percent: number): 'green' | 'yellow' | 'red' =>
+  percent >= 85 ? 'red' : percent >= 60 ? 'yellow' : 'green'
+
+// A rate-limit window's use, rounded; null when the account reports none.
+export const windowPercent = (
+  rateLimits: readonly { kind: string; percentUsed: number }[],
+  kind: 'five_hour' | 'seven_day',
+): number | null => {
+  const window = rateLimits.find(limit => limit.kind === kind)
+  return window === undefined ? null : Math.round(window.percentUsed)
+}
+
 async function refresh($: EngineInterface) {
   const config =
     (await $.env.get('CLAUDE_CONFIG_DIR')) ??
@@ -43,12 +58,14 @@ async function refresh($: EngineInterface) {
   const title = lastTitle(await $.fs.read(path).catch(() => ''))
   if (title !== null) await update($, name, () => title)
 
-  const { context } = await $.session.usage()
+  const { context, rateLimits } = await $.session.usage()
   const model = prettyModel(await $.session.model())
   await update($, info, current => ({
     ...current,
     model: current.model ?? model,
     percent: context.percent ?? current.percent,
+    fiveHour: windowPercent(rateLimits, 'five_hour') ?? current.fiveHour,
+    weekly: windowPercent(rateLimits, 'seven_day') ?? current.weekly,
   }))
 }
 
@@ -84,6 +101,20 @@ export const register: Register = on => {
     return result
   })
 
+  // Rate-limit windows move between turns too; the engine pushes each whole-point move.
+  on('session.measure', async ($, e, next) => {
+    if (e.changed.includes('rateLimits')) {
+      const fiveHour = windowPercent(e.rateLimits, 'five_hour')
+      const weekly = windowPercent(e.rateLimits, 'seven_day')
+      await update($, info, current => ({
+        ...current,
+        fiveHour: fiveHour ?? current.fiveHour,
+        weekly: weekly ?? current.weekly,
+      })).catch(() => {})
+    }
+    return next(e)
+  })
+
   // Each main-loop request carries the model and effort it actually used.
   on('turn.step', async function* ($, e, next) {
     if (e.agentId === undefined) {
@@ -105,24 +136,27 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, name)
-    const { model, effort, style, percent } = await read($, info)
+    const { model, effort, style, percent, fiveHour, weekly } = await read($, info)
     if (e.props.hasSurvey) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
     const details = [model, effort, style].filter(Boolean).join(' · ')
-    const level = percent === null ? null : percent >= 85 ? 'red' : percent >= 60 ? 'yellow' : 'green'
 
+    // A dim rule across the band's full width sets it apart from the chat.
     return (
-      <Box>
-        {current !== null && (
-          <Text bold color="cyan">
-            ● {current}
-          </Text>
-        )}
-        {details !== '' && <Text dimColor>{`${current !== null ? '  ' : ''}${details}`}</Text>}
-        {percent !== null && level !== null && (
-          <Text color={level}>{`  ${percent}% ctx`}</Text>
-        )}
+      <Box flexDirection="column">
+        <Text dimColor>{'─'.repeat(Math.max(e.props.bodyColumns, 0))}</Text>
+        <Box>
+          {current !== null && (
+            <Text bold color="cyan">
+              {'> '}{current}
+            </Text>
+          )}
+          {details !== '' && <Text dimColor>{`${current !== null ? '  ' : ''}${details}`}</Text>}
+          {percent !== null && <Text color={usageColor(percent)}>{`  ${percent}% ctx`}</Text>}
+          {fiveHour !== null && <Text color={usageColor(fiveHour)}>{`  ${fiveHour}% 5h`}</Text>}
+          {weekly !== null && <Text color={usageColor(weekly)}>{`  ${weekly}% 7d`}</Text>}
+        </Box>
       </Box>
     )
   })

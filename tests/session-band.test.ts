@@ -31,3 +31,36 @@ describe('prettyModel', () => {
     expect(prettyModel('Opus 5.5')).toBe('Opus 5.5')
   })
 })
+
+describe('band', () => {
+  test('draws a full-width divider above the session line', async $ => {
+    const BAND = {
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 40 },
+    } as const
+    const ui = await $.ui.mount({ plugin: 'nebster', surface: 'terminal', ...BAND } as never)
+    expect((await ui.find({ type: 'Text', text: /^─+$/ } as never))?.text).toBe('─'.repeat(40))
+    await ui.unmount()
+  })
+})
+
+import { usageColor, windowPercent } from '../hooks/register'
+
+describe('usage', () => {
+  test('colours by threshold', () => {
+    expect(usageColor(59)).toBe('green')
+    expect(usageColor(60)).toBe('yellow')
+    expect(usageColor(84)).toBe('yellow')
+    expect(usageColor(85)).toBe('red')
+  })
+
+  test('reads a rate-limit window, rounded', () => {
+    const limits = [
+      { kind: 'five_hour', percentUsed: 23.5 },
+      { kind: 'seven_day', percentUsed: 41.2 },
+    ]
+    expect(windowPercent(limits, 'five_hour')).toBe(24)
+    expect(windowPercent(limits, 'seven_day')).toBe(41)
+    expect(windowPercent([], 'five_hour')).toBe(null)
+  })
+})
