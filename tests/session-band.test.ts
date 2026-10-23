@@ -90,3 +90,12 @@ describe('style label', () => {
     await ui.unmount()
   })
 })
+
+import { capitalize } from '../hooks/register'
+
+describe('capitalize', () => {
+  test('upper-cases the first letter of the effort', () => {
+    expect(capitalize('medium')).toBe('Medium')
+    expect(capitalize('xhigh')).toBe('Xhigh')
+  })
+})

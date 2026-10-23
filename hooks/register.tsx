@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Info } from '../types'
+import { registerQuiet } from './quiet'
 
 const name = atom({ plugin: 'nebster', key: 'name' } as const, null)
 const info = atom({ plugin: 'nebster', key: 'info' } as const, {
@@ -35,6 +36,9 @@ export const prettyModel = (id: string): string => {
   const label = family.charAt(0).toUpperCase() + family.slice(1)
   return `${label} ${major}${minor ? `.${minor}` : ''}`
 }
+
+// `medium` → `Medium`, to match the model and style labels.
+export const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
 
 // Green, then yellow from 60%, red from 85%.
 export const usageColor = (percent: number): 'green' | 'yellow' | 'red' =>
@@ -86,6 +90,8 @@ async function seed($: EngineInterface) {
 }
 
 export const register: Register = on => {
+  registerQuiet(on)
+
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     await seed($).catch(() => {})
@@ -144,7 +150,7 @@ export const register: Register = on => {
     if (e.props.hasSurvey) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
-    const details = [model, effort, style].filter(Boolean).join(' · ')
+    const details = [model, effort === null ? null : capitalize(effort), style].filter(Boolean).join(' · ')
 
     // A dim rule across the band's full width sets it apart from the chat.
     return (
