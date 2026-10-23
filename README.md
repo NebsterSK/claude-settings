@@ -85,9 +85,9 @@ Personas for the terminal reply only. Pick one with `/output-style`. Both keep C
 
 ### Session band (mod)
 
-A band above the prompt, under a dim divider: the session name (from `/rename`) in bold, then model, effort and output style, then context used, 5-hour and weekly usage — each green below 60%, yellow from 60%, red from 85%. It loads with the plugin; nothing to enable. Source in `hooks/register.tsx`.
+A band above the prompt, under a dim divider: the session name (from `/rename`) in bold, then model, effort and output style, then context used, 5-hour and weekly usage — each green below 60%, yellow from 60%, red from 85%. After a divider: the git branch (green for main/master, yellow for develop, gray otherwise) with changed `~`, new `+` and deleted `-` file counts. It loads with the plugin; nothing to enable. Source in `hooks/register.tsx`.
 
-The same mod hides background chatter in the transcript: finished tool groups, other agents' messages and task notices. The turn's closing line shows only `Worked: <duration>`, in a faint gray. Your prompts and Claude's answers stand out; live or failed tool groups keep their normal line, and ctrl+o shows every row in full. Source in `hooks/quiet.tsx`.
+The same mod hides background chatter in the transcript: finished tool groups, other agents' messages and task notices. The turn's closing line shows only `Worked: <duration>`, in a faint gray. Your prompts and Claude's answers stand out; only the tool group still running keeps its normal line, and ctrl+o shows every row in full. The spinner says what the turn is doing (Thinking, Running tools, Writing) instead of a random word. Source in `hooks/quiet.tsx`.
 
 ## Repository layout
 

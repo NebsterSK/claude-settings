@@ -7,8 +7,15 @@ export type Info = {
   weekly: number | null
 }
 
+export type Git = {
+  branch: string | null
+  changed: number
+  added: number
+  deleted: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    nebster: { name: string | null; info: Info }
+    nebster: { name: string | null; info: Info; git: Git }
   }
 }

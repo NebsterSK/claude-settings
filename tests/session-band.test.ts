@@ -99,3 +99,51 @@ describe('capitalize', () => {
     expect(capitalize('xhigh')).toBe('Xhigh')
   })
 })
+
+import { branchColor, parseGitStatus } from '../hooks/register'
+
+describe('git', () => {
+  test('splits changed from added files', () => {
+    const status = '## main...origin/main [ahead 1]\n M README.md\n?? a.txt\n?? b.txt\nA  c.ts\n'
+    expect(parseGitStatus(status)).toEqual({ branch: 'main', changed: 1, added: 3, deleted: 0 })
+  })
+
+  test('counts deleted files apart, staged or not', () => {
+    const status = '## main\n D gone.ts\nD  staged.ts\n M kept.ts\n'
+    expect(parseGitStatus(status)).toEqual({ branch: 'main', changed: 1, added: 0, deleted: 2 })
+  })
+
+  test('reads a branch with no commits or upstream', () => {
+    expect(parseGitStatus('## No commits yet on dev\n')).toEqual({ branch: 'dev', changed: 0, added: 0, deleted: 0 })
+    expect(parseGitStatus('## feature/x\n')).toEqual({ branch: 'feature/x', changed: 0, added: 0, deleted: 0 })
+  })
+
+  test('colours the branch by its role', () => {
+    expect(branchColor('main')).toBe('green')
+    expect(branchColor('master')).toBe('green')
+    expect(branchColor('develop')).toBe('yellow')
+    expect(branchColor('feature/x')).toBe('gray')
+  })
+})
+
+describe('git in the band', () => {
+  test('draws branch, changed and added after the usage', async ($, on) => {
+    on('session.start', (_, e) => ({ cwd: e.cwd }))
+    on('session.root', () => ({ value: '/project' }) as never)
+    on('process.run', () =>
+      ({ value: { exitCode: 0, stdout: '## main\n M a.ts\n?? b.ts\n?? c.ts\n', stderr: '' } }) as never,
+    )
+
+    await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+    const BAND = {
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 60 },
+    } as const
+    const ui = await $.ui.mount({ plugin: 'nebster', surface: 'terminal', ...BAND } as never)
+    expect((await ui.find({ type: 'Text', text: '⎇ main' } as never))?.text).toBe('⎇ main')
+    expect((await ui.find({ type: 'Text', text: '  ~1' } as never))?.text).toBe('  ~1')
+    expect((await ui.find({ type: 'Text', text: '  +2' } as never))?.text).toBe('  +2')
+    await ui.unmount()
+  })
+})

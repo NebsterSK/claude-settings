@@ -13,19 +13,28 @@ export const formatDuration = (milliseconds: number): string => {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }
 
+// What the turn is doing, said plainly instead of a random gerund.
+const SPINNER_WORDS = {
+  requesting: 'Waiting for the model',
+  thinking: 'Thinking',
+  'tool-input': 'Preparing a tool call',
+  'tool-use': 'Running tools',
+  responding: 'Writing',
+} as const
+
 // Close to a black background: readable when looked for, out of the way otherwise.
 const FAINT = '#4a4a4a'
 
 export const registerQuiet: Register = on => {
-  // Tool groups: hidden once finished; a live or failed group keeps the engine's line.
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    if (e.props.message !== null) return next(e)
+    return next({ ...e, props: { ...e.props, word: SPINNER_WORDS[e.props.mode] } })
+  })
+
+  // Tool groups: hidden once finished, failed calls included (Claude reacts to those
+  // itself); only the live group keeps the engine's line.
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
-    const { calls, isActive, isExpanded, isCallsOnly } = e.props
-    const isQuiet =
-      !isExpanded &&
-      !isActive &&
-      isCallsOnly === true &&
-      calls.every(call => !call.isErrored && !call.isInterrupted)
-    if (!isQuiet) return next(e)
+    if (e.props.isExpanded || e.props.isActive) return next(e)
 
     const { Box } = $.ui.resolve(e)
     return <Box display="none" />

@@ -26,6 +26,18 @@ describe('quiet rows', () => {
     await ui.unmount()
   })
 
+  test('a finished group with a failed call draws nothing too', async $ => {
+    const failed = { tool: 'Bash', input: {}, isRunning: false, isErrored: true, isInterrupted: false }
+    const ui = await mount($, 'ToolGroup', {
+      calls: [failed],
+      isActive: false,
+      isExpanded: false,
+      isCallsOnly: false,
+    })
+    expect(await ui.find({ type: 'Text' } as never)).toBeUndefined()
+    await ui.unmount()
+  })
+
   test("another agent's message draws nothing; the person's prompt is left alone", async ($, on) => {
     on('ui.render', ($, e) => {
       const { Text } = $.ui.resolve(e)
@@ -57,6 +69,18 @@ describe('quiet rows', () => {
       waitingFor: { agents: [{ id: 'a', agentType: 'general-purpose' }], workflows: 0 },
     })
     expect((await ui.find({ type: 'Text' } as never))?.text).toBe('Worked: 1m 4s')
+    await ui.unmount()
+  })
+})
+
+describe('spinner', () => {
+  test('names what the turn is doing', async ($, on) => {
+    on('ui.render', ($, e) => {
+      const { Text } = $.ui.resolve(e)
+      return <Text>{(e.props as { word: string }).word}</Text>
+    })
+    const ui = await mount($, 'Spinner', { word: 'Sauteing', message: null, suffix: '…', mode: 'tool-use' })
+    expect((await ui.find({ type: 'Text' } as never))?.text).toBe('Running tools')
     await ui.unmount()
   })
 })
