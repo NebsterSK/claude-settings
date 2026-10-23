@@ -60,8 +60,12 @@ async function refresh($: EngineInterface) {
 
   const { context, rateLimits } = await $.session.usage()
   const model = prettyModel(await $.session.model())
+  // `/output-style` writes settings, so they stay right when another plugin's
+  // `prompt.compose` hook answers without passing the event on to ours.
+  const style = await $.settings.read({ key: 'outputStyle' })
   await update($, info, current => ({
     ...current,
+    style: typeof style === 'string' ? style : current.style,
     model: current.model ?? model,
     percent: context.percent ?? current.percent,
     fiveHour: windowPercent(rateLimits, 'five_hour') ?? current.fiveHour,

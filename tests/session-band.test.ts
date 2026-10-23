@@ -64,3 +64,29 @@ describe('usage', () => {
     expect(windowPercent([], 'five_hour')).toBe(null)
   })
 })
+
+describe('style label', () => {
+  test('follows the settings after a turn, with no prompt.compose', async ($, on) => {
+    let outputStyle = 'Mate'
+    on('session.start', (_, e) => ({ cwd: e.cwd }))
+    on('settings.read', () => ({ value: { outputStyle } }) as never)
+    on('turn.complete', () => ({ text: '' }) as never)
+    on('env.get', () => ({ value: '/home/test' }) as never)
+    on('session.root', () => ({ value: '/project' }) as never)
+    on('session.id', () => ({ value: 'session' }) as never)
+    on('session.model', () => ({ value: 'claude-opus-5-5' }) as never)
+    on('session.usage', () => ({ value: { context: { percent: 10 }, rateLimits: [] } }) as never)
+
+    await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+    outputStyle = 'Peon'
+    await $.turn.complete({ answer: '' } as never)
+
+    const BAND = {
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 40 },
+    } as const
+    const ui = await $.ui.mount({ plugin: 'nebster', surface: 'terminal', ...BAND } as never)
+    expect(await ui.find({ type: 'Text', text: /Peon/ } as never)).toBeDefined()
+    await ui.unmount()
+  })
+})
