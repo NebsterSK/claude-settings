@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Git, Info } from '../types'
+import type { Git, Info, PullRequest } from '../types'
 import { registerQuiet } from './quiet'
 
 const name = atom({ plugin: 'nebster', key: 'name' } as const, null)
@@ -13,6 +13,12 @@ const info = atom({ plugin: 'nebster', key: 'info' } as const, {
   fiveHour: null,
   weekly: null,
 } as Info)
+// Segment tints, a step above a dark terminal background; empty meter cells sit between.
+const TINT_A = '#1c2129'
+const TINT_B = '#232934'
+const METER_EMPTY = '#4a505a'
+
+const pr = atom({ plugin: 'nebster', key: 'pr' } as const, null as PullRequest)
 const git = atom({ plugin: 'nebster', key: 'git' } as const, { branch: null, changed: 0, added: 0, deleted: 0 } as Git)
 
 // The latest `/rename` lives in the transcript as a `custom-title` row.
@@ -41,9 +47,15 @@ export const prettyModel = (id: string): string => {
 // `medium` → `Medium`, to match the model and style labels.
 export const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
 
-// Green, then yellow from 60%, red from 85%.
+// Green, then yellow from 60%, red from 80%: the third and fourth of the meter's five cells.
 export const usageColor = (percent: number): 'green' | 'yellow' | 'red' =>
-  percent >= 85 ? 'red' : percent >= 60 ? 'yellow' : 'green'
+  percent >= 80 ? 'red' : percent >= 60 ? 'yellow' : 'green'
+
+// A five-cell meter, each cell 20%: 12% → `▰▱▱▱▱`, 40% → `▰▰▱▱▱`, 100% → `▰▰▰▰▰`.
+export const meterCells = (percent: number): { filled: string; empty: string } => {
+  const filled = Math.min(5, Math.max(0, Math.ceil(percent / 20)))
+  return { filled: '▰'.repeat(filled), empty: '▱'.repeat(5 - filled) }
+}
 
 // A rate-limit window's use, rounded; null when the account reports none.
 export const windowPercent = (
@@ -72,6 +84,34 @@ export const parseGitStatus = (porcelain: string): Git => {
 export const branchColor = (branch: string): 'green' | 'yellow' | 'gray' =>
   branch === 'main' || branch === 'master' ? 'green' : branch === 'develop' ? 'yellow' : 'gray'
 
+// The hint line, ` · `-separated: the shift+tab reminder always goes, and the PR goes
+// while the band's git segment shows it.
+export const trimHint = (hint: string, isPullRequestInBand: boolean): string =>
+  hint
+    .split(/\s+·\s+/)
+    .filter(part => !/^\(shift\+tab to cycle\)$/.test(part.trim()))
+    .filter(part => !(isPullRequestInBand && /^PR #\d+$/.test(part.trim())))
+    .join(' · ')
+    .trim()
+
+// `gh pr view --json number,url,state`: the branch's PR while it is open, else null.
+export const parsePullRequest = (json: string): PullRequest => {
+  const found = JSON.parse(json) as { number?: number; url?: string; state?: string }
+  return found.state === 'OPEN' && typeof found.number === 'number' && typeof found.url === 'string'
+    ? { number: found.number, url: found.url }
+    : null
+}
+
+// The PR behind the current branch, from `gh`; null when there is none or no `gh`.
+async function refreshPullRequest($: EngineInterface) {
+  const result = await $.process.run(['gh', 'pr', 'view', '--json', 'number,url,state'], {
+    cwd: await $.session.root(),
+    timeoutMs: 8000,
+  })
+  const open = result.exitCode === 0 ? parsePullRequest(result.stdout) : null
+  await update($, pr, () => open)
+}
+
 async function refreshGit($: EngineInterface) {
   const result = await $.process.run(['git', 'status', '--porcelain=v1', '-b'], {
     cwd: await $.session.root(),
@@ -88,13 +128,19 @@ async function refresh($: EngineInterface) {
     `${(await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))}/.claude`
   const project = (await $.session.root()).replace(/[^a-zA-Z0-9]/g, '-')
   const path = `${config}/projects/${project}/${await $.session.id()}.jsonl`
-  const title = lastTitle(await $.fs.read(path).catch(() => ''))
+  // `$.fs.read` refuses files over 4 MiB, which a long session's transcript outgrows;
+  // then only its `custom-title` rows are pulled out with grep.
+  const transcript = await $.fs
+    .read(path)
+    .catch(() => $.process.run(['grep', '-F', '"custom-title"', path], { timeoutMs: 3000 }).then(result => result.stdout))
+    .catch(() => '')
+  const title = lastTitle(transcript)
   if (title !== null) await update($, name, () => title)
 
   const { context, rateLimits } = await $.session.usage()
   const model = prettyModel(await $.session.model())
-  // `/output-style` writes settings, so they stay right when another plugin's
-  // `prompt.compose` hook answers without passing the event on to ours.
+  // `/output-style` writes settings, so the style comes from there; a `prompt.compose`
+  // hook would be answered first by a security plugin and never run.
   const style = await $.settings.read({ key: 'outputStyle' })
   await update($, info, current => ({
     ...current,
@@ -126,6 +172,8 @@ export const register: Register = on => {
     await seed($).catch(() => {})
     await refresh($).catch(() => {})
     await refreshGit($).catch(() => {})
+    // `gh` goes over the network, so it runs on a timer of its own: the turn never waits on it.
+    $.clock.after(0, () => void refreshPullRequest($).catch(() => {}))
     return result
   })
 
@@ -133,6 +181,8 @@ export const register: Register = on => {
     const result = await next(e)
     await refresh($).catch(() => {})
     await refreshGit($).catch(() => {})
+    // `gh` goes over the network, so it runs on a timer of its own: the turn never waits on it.
+    $.clock.after(0, () => void refreshPullRequest($).catch(() => {}))
     return result
   })
 
@@ -140,6 +190,8 @@ export const register: Register = on => {
     const result = await next(e)
     await refresh($).catch(() => {})
     await refreshGit($).catch(() => {})
+    // `gh` goes over the network, so it runs on a timer of its own: the turn never waits on it.
+    $.clock.after(0, () => void refreshPullRequest($).catch(() => {}))
     return result
   })
 
@@ -167,48 +219,74 @@ export const register: Register = on => {
     return yield* next(e)
   })
 
-  // Subagent prompts carry no style, so only a named one counts.
-  on('prompt.compose', async ($, e, next) => {
-    if (e.outputStyle !== null) {
-      const style = e.outputStyle.name
-      await update($, info, current => ({ ...current, style })).catch(() => {})
-    }
-    return next(e)
+
+  // The hint line loses the shift+tab reminder, and the PR while the band shows it.
+  on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
+    const pullRequest = await read($, pr)
+    const hint = trimHint(e.props.hint, pullRequest !== null)
+    return hint === e.props.hint ? next(e) : next({ ...e, props: { ...e.props, hint } })
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, name)
     const { model, effort, style, percent, fiveHour, weekly } = await read($, info)
     const { branch, changed, added, deleted } = await read($, git)
+    const pullRequest = await read($, pr)
     if (e.props.hasSurvey) return next(e)
 
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Link, Text } = $.ui.resolve(e)
     const details = [model, effort === null ? null : capitalize(effort), style].filter(Boolean).join(' · ')
+    const meters = [
+      { label: 'ctx', value: percent },
+      { label: '5h', value: fiveHour },
+      { label: '7d', value: weekly },
+    ].flatMap(meter => (meter.value === null ? [] : [{ label: meter.label, value: meter.value }]))
 
-    // A dim rule across the band's full width sets it apart from the chat.
+    // Three tinted segments, Claude · usage · git: the tints group them, so no separators.
+    // The top margin matches the empty row Claude Code leaves between the band and the input.
+    // Every Text carries the tint itself, so the segment stays solid whatever the terminal does.
     return (
-      <Box flexDirection="column">
-        <Text dimColor>{'─'.repeat(Math.max(e.props.bodyColumns, 0))}</Text>
+      <Box flexWrap="wrap" columnGap={1} marginTop={1}>
         <Box>
+          <Text backgroundColor={TINT_A}> </Text>
           {current !== null && (
-            <Text bold color="cyan">
-              {'> '}{current}
-            </Text>
+            <Text backgroundColor={TINT_A} bold color="cyan">{`${current}  `}</Text>
           )}
-          {details !== '' && <Text dimColor>{`${current !== null ? '  ' : ''}${details}`}</Text>}
-          {percent !== null && <Text color={usageColor(percent)}>{`  ${percent}% ctx`}</Text>}
-          {fiveHour !== null && <Text color={usageColor(fiveHour)}>{`  ${fiveHour}% 5h`}</Text>}
-          {weekly !== null && <Text color={usageColor(weekly)}>{`  ${weekly}% 7d`}</Text>}
-          {branch !== null && (
-            <Box>
-              <Text dimColor>{'  │  '}</Text>
-              <Text color={branchColor(branch)}>{`⎇ ${branch}`}</Text>
-              {changed > 0 && <Text color="yellow">{`  ~${changed}`}</Text>}
-              {added > 0 && <Text color="green">{`  +${added}`}</Text>}
-              {deleted > 0 && <Text color="red">{`  -${deleted}`}</Text>}
-            </Box>
-          )}
+          <Text backgroundColor={TINT_A} dimColor>{`${details} `}</Text>
         </Box>
+        {meters.length > 0 && (
+          <Box>
+            {meters.map((meter, index) => {
+              const { filled, empty } = meterCells(meter.value)
+              return (
+                <Box key={meter.label}>
+                  <Text backgroundColor={TINT_B} dimColor>{`${index === 0 ? ' ' : '  '}${meter.label} `}</Text>
+                  <Text backgroundColor={TINT_B} color={usageColor(meter.value)}>{filled}</Text>
+                  <Text backgroundColor={TINT_B} color={METER_EMPTY}>{empty}</Text>
+                  <Text backgroundColor={TINT_B} color={usageColor(meter.value)}>{` ${meter.value}%`}</Text>
+                </Box>
+              )
+            })}
+            <Text backgroundColor={TINT_B}> </Text>
+          </Box>
+        )}
+        {branch !== null && (
+          <Box>
+            <Text backgroundColor={TINT_A} color={branchColor(branch)}>{` ⎇ ${branch}`}</Text>
+            {changed > 0 && <Text backgroundColor={TINT_A} color="yellow">{`  ~${changed}`}</Text>}
+            {added > 0 && <Text backgroundColor={TINT_A} color="green">{`  +${added}`}</Text>}
+            {deleted > 0 && <Text backgroundColor={TINT_A} color="red">{`  -${deleted}`}</Text>}
+            {pullRequest !== null && (
+              <Box>
+                <Text backgroundColor={TINT_A} dimColor>{'  PR '}</Text>
+                <Link href={pullRequest.url}>
+                  <Text backgroundColor={TINT_A} color="yellow" underline>{`#${pullRequest.number}`}</Text>
+                </Link>
+              </Box>
+            )}
+            <Text backgroundColor={TINT_A}> </Text>
+          </Box>
+        )}
       </Box>
     )
   })

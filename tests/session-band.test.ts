@@ -33,25 +33,44 @@ describe('prettyModel', () => {
 })
 
 describe('band', () => {
-  test('draws a full-width divider above the session line', async $ => {
+  test('draws segments with five-cell meters and no divider', async ($, on) => {
+    on('session.start', (_, e) => ({ cwd: e.cwd }))
+    on('session.usage', () => ({ value: { context: { percent: 12 }, rateLimits: [{ kind: 'seven_day', percentUsed: 82 }] } }) as never)
+    on('session.model', () => ({ value: 'claude-opus-5-5' }) as never)
+    on('env.get', () => ({ value: '/home/test' }) as never)
+    on('session.root', () => ({ value: '/project' }) as never)
+    on('session.id', () => ({ value: 'session' }) as never)
+    on('settings.read', () => ({ value: {} }) as never)
+    await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
     const BAND = {
       component: 'AbovePrompt',
-      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 40 },
+      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 },
     } as const
     const ui = await $.ui.mount({ plugin: 'nebster', surface: 'terminal', ...BAND } as never)
-    expect((await ui.find({ type: 'Text', text: /^─+$/ } as never))?.text).toBe('─'.repeat(40))
+    expect(await ui.find({ type: 'Text', text: /^─+$/ } as never)).toBeUndefined()
+    expect((await ui.find({ type: 'Text', text: ' 12%' } as never))?.text).toBe(' 12%')
+    expect((await ui.find({ type: 'Text', text: '▰▰▰▰▰' } as never))?.text).toBe('▰▰▰▰▰')
     await ui.unmount()
   })
 })
 
-import { usageColor, windowPercent } from '../hooks/register'
+import { meterCells, usageColor, windowPercent } from '../hooks/register'
 
 describe('usage', () => {
   test('colours by threshold', () => {
     expect(usageColor(59)).toBe('green')
     expect(usageColor(60)).toBe('yellow')
-    expect(usageColor(84)).toBe('yellow')
-    expect(usageColor(85)).toBe('red')
+    expect(usageColor(79)).toBe('yellow')
+    expect(usageColor(80)).toBe('red')
+  })
+
+  test('fills one meter cell per 20%', () => {
+    expect(meterCells(0)).toEqual({ filled: '', empty: '▱▱▱▱▱' })
+    expect(meterCells(12)).toEqual({ filled: '▰', empty: '▱▱▱▱' })
+    expect(meterCells(40)).toEqual({ filled: '▰▰', empty: '▱▱▱' })
+    expect(meterCells(82)).toEqual({ filled: '▰▰▰▰▰', empty: '' })
+    expect(meterCells(130)).toEqual({ filled: '▰▰▰▰▰', empty: '' })
   })
 
   test('reads a rate-limit window, rounded', () => {
@@ -141,9 +160,77 @@ describe('git in the band', () => {
       props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 60 },
     } as const
     const ui = await $.ui.mount({ plugin: 'nebster', surface: 'terminal', ...BAND } as never)
-    expect((await ui.find({ type: 'Text', text: '⎇ main' } as never))?.text).toBe('⎇ main')
+    expect((await ui.find({ type: 'Text', text: ' ⎇ main' } as never))?.text).toBe(' ⎇ main')
     expect((await ui.find({ type: 'Text', text: '  ~1' } as never))?.text).toBe('  ~1')
     expect((await ui.find({ type: 'Text', text: '  +2' } as never))?.text).toBe('  +2')
+    await ui.unmount()
+  })
+})
+
+describe('session name from a large transcript', () => {
+  test('falls back to grep when the transcript is too big to read', async ($, on) => {
+    on('session.start', (_, e) => ({ cwd: e.cwd }))
+    on('env.get', () => ({ value: '/home/test' }) as never)
+    on('session.root', () => ({ value: '/project' }) as never)
+    on('session.id', () => ({ value: 'session' }) as never)
+    on('settings.read', () => ({ value: {} }) as never)
+    on('fs.read', () => {
+      throw new Error('over 4 MiB')
+    })
+    on('process.run', (_, e) =>
+      ({
+        value: {
+          exitCode: 0,
+          stdout: (e as { argv: string[] }).argv[0] === 'grep' ? '{"type":"custom-title","customTitle":"mod"}\n' : '## main\n',
+          stderr: '',
+        },
+      }) as never,
+    )
+
+    await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+    const BAND = {
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 },
+    } as const
+    const ui = await $.ui.mount({ plugin: 'nebster', surface: 'terminal', ...BAND } as never)
+    expect((await ui.find({ type: 'Text', text: 'mod  ' } as never))?.text).toBe('mod  ')
+    await ui.unmount()
+  })
+})
+
+import { parsePullRequest, trimHint } from '../hooks/register'
+
+describe('pull request', () => {
+  test('trims the shift+tab reminder always and the PR while the band shows it', () => {
+    expect(trimHint('(shift+tab to cycle) · PR #5 · ⧉ claude-code-ui-variants', true)).toBe('⧉ claude-code-ui-variants')
+    expect(trimHint('(shift+tab to cycle) · PR #5 · ⧉ claude-code-ui-variants', false)).toBe('PR #5 · ⧉ claude-code-ui-variants')
+    expect(trimHint('(shift+tab to cycle)', false)).toBe('')
+    expect(trimHint('? for shortcuts', true)).toBe('? for shortcuts')
+  })
+
+  test('reads only an open PR from gh', () => {
+    expect(parsePullRequest('{"number":5,"url":"https://github.com/o/r/pull/5","state":"OPEN"}')).toEqual({
+      number: 5,
+      url: 'https://github.com/o/r/pull/5',
+    })
+    expect(parsePullRequest('{"number":5,"url":"u","state":"MERGED"}')).toBe(null)
+  })
+
+  test('draws the open PR in the git segment', async ($, on) => {
+    on('state.get', (_, e) => {
+      const key = (e as { key: string }).key
+      if (key === 'pr') return { value: { value: { number: 5, url: 'https://github.com/o/r/pull/5' }, version: 1 } } as never
+      if (key === 'git') return { value: { value: { branch: 'main', changed: 0, added: 0, deleted: 0 }, version: 1 } } as never
+      return { value: { version: 0 } } as never
+    })
+
+    const BAND = {
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 },
+    } as const
+    const ui = await $.ui.mount({ plugin: 'nebster', surface: 'terminal', ...BAND } as never)
+    expect((await ui.find({ type: 'Text', text: '#5' } as never))?.text).toBe('#5')
     await ui.unmount()
   })
 })

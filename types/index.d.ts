@@ -14,8 +14,10 @@ export type Git = {
   deleted: number
 }
 
+export type PullRequest = { number: number; url: string } | null
+
 declare module 'claude-code' {
   interface PluginState {
-    nebster: { name: string | null; info: Info; git: Git }
+    nebster: { name: string | null; info: Info; git: Git; pr: PullRequest }
   }
 }
