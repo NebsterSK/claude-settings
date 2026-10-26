@@ -198,3 +198,39 @@ describe('session name from a large transcript', () => {
     await ui.unmount()
   })
 })
+
+import { parsePullRequest, trimHint } from '../hooks/register'
+
+describe('pull request', () => {
+  test('trims the shift+tab reminder always and the PR while the band shows it', () => {
+    expect(trimHint('(shift+tab to cycle) · PR #5 · ⧉ claude-code-ui-variants', true)).toBe('⧉ claude-code-ui-variants')
+    expect(trimHint('(shift+tab to cycle) · PR #5 · ⧉ claude-code-ui-variants', false)).toBe('PR #5 · ⧉ claude-code-ui-variants')
+    expect(trimHint('(shift+tab to cycle)', false)).toBe('')
+    expect(trimHint('? for shortcuts', true)).toBe('? for shortcuts')
+  })
+
+  test('reads only an open PR from gh', () => {
+    expect(parsePullRequest('{"number":5,"url":"https://github.com/o/r/pull/5","state":"OPEN"}')).toEqual({
+      number: 5,
+      url: 'https://github.com/o/r/pull/5',
+    })
+    expect(parsePullRequest('{"number":5,"url":"u","state":"MERGED"}')).toBe(null)
+  })
+
+  test('draws the open PR in the git segment', async ($, on) => {
+    on('state.get', (_, e) => {
+      const key = (e as { key: string }).key
+      if (key === 'pr') return { value: { value: { number: 5, url: 'https://github.com/o/r/pull/5' }, version: 1 } } as never
+      if (key === 'git') return { value: { value: { branch: 'main', changed: 0, added: 0, deleted: 0 }, version: 1 } } as never
+      return { value: { version: 0 } } as never
+    })
+
+    const BAND = {
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 },
+    } as const
+    const ui = await $.ui.mount({ plugin: 'nebster', surface: 'terminal', ...BAND } as never)
+    expect((await ui.find({ type: 'Text', text: '#5' } as never))?.text).toBe('#5')
+    await ui.unmount()
+  })
+})
