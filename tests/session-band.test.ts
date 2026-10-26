@@ -207,6 +207,9 @@ describe('pull request', () => {
     expect(trimHint('(shift+tab to cycle) · PR #5 · ⧉ claude-code-ui-variants', false)).toBe('PR #5 · ⧉ claude-code-ui-variants')
     expect(trimHint('(shift+tab to cycle)', false)).toBe('')
     expect(trimHint('? for shortcuts', true)).toBe('? for shortcuts')
+    expect(trimHint('⏵⏵ auto mode on · (shift+tab to cycle)', false)).toBe('⏵⏵ auto mode on')
+    expect(trimHint('⏵⏵ auto mode on ·', false)).toBe('⏵⏵ auto mode on')
+    expect(trimHint('⏵⏵ auto mode on · ⧉ notes', false)).toBe('⏵⏵ auto mode on · ⧉ notes')
   })
 
   test('reads only an open PR from gh', () => {

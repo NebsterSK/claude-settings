@@ -88,11 +88,11 @@ export const branchColor = (branch: string): 'green' | 'yellow' | 'gray' =>
 // while the band's git segment shows it.
 export const trimHint = (hint: string, isPullRequestInBand: boolean): string =>
   hint
-    .split(/\s+·\s+/)
-    .filter(part => !/^\(shift\+tab to cycle\)$/.test(part.trim()))
-    .filter(part => !(isPullRequestInBand && /^PR #\d+$/.test(part.trim())))
+    .split(/\s*·\s*/)
+    .map(part => part.trim())
+    .filter(part => part !== '' && part !== '(shift+tab to cycle)')
+    .filter(part => !(isPullRequestInBand && /^PR #\d+$/.test(part)))
     .join(' · ')
-    .trim()
 
 // `gh pr view --json number,url,state`: the branch's PR while it is open, else null.
 export const parsePullRequest = (json: string): PullRequest => {
