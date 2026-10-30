@@ -7,6 +7,7 @@ allowed-tools:
   - Bash(git status*)
   - Bash(git branch*)
   - Bash(git rev-parse *)
+  - Bash(git symbolic-ref *)
   - Bash(git diff *)
   - Bash(git log *)
   - Bash(gh auth status*)
@@ -20,7 +21,7 @@ You are the dispatcher, not the reviewer. Gather context, delegate the review to
 ## Context (captured when the skill was invoked)
 
 - Current branch: !`git branch --show-current`
-- Default base: !`git rev-parse --verify --quiet develop >/dev/null 2>&1 && echo develop || echo main`
+- Default base (the repo's default branch; strip a leading `origin/`): !`git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || (git rev-parse --verify --quiet main >/dev/null 2>&1 && echo main) || echo master`
 - Working tree: !`git status --short 2>&1 | head -30 || true`
 - `gh` auth: !`gh auth status 2>&1 | head -3 || true`
 - PR on this branch: !`gh pr view --json number,title,author,url,baseRefName 2>&1 || true`
