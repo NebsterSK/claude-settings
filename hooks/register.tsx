@@ -66,7 +66,7 @@ export const windowPercent = (
   return window === undefined ? null : Math.round(window.percentUsed)
 }
 
-// `git status --porcelain=v1 -b`: the `##` head line, then one line per file;
+// `git status --porcelain=v1 -b --untracked-files=all` (each new file, not its folder): the `##` head line, then one line per file;
 // untracked (`??`) and staged-new (`A`) files count as added, a `D` on either side
 // as deleted, the rest as changed.
 export const parseGitStatus = (porcelain: string): Git => {
@@ -113,7 +113,7 @@ async function refreshPullRequest($: EngineInterface) {
 }
 
 async function refreshGit($: EngineInterface) {
-  const result = await $.process.run(['git', 'status', '--porcelain=v1', '-b'], {
+  const result = await $.process.run(['git', 'status', '--porcelain=v1', '-b', '--untracked-files=all'], {
     cwd: await $.session.root(),
     timeoutMs: 3000,
   })
