@@ -5,6 +5,8 @@ export type Info = {
   percent: number | null
   fiveHour: number | null
   weekly: number | null
+  fiveHourResetsAt: string | null
+  weeklyResetsAt: string | null
 }
 
 export type Git = {
@@ -18,6 +20,6 @@ export type PullRequest = { number: number; url: string } | null
 
 declare module 'claude-code' {
   interface PluginState {
-    nebster: { name: string | null; info: Info; git: Git; pr: PullRequest }
+    nebster: { name: string | null; info: Info; git: Git; pr: PullRequest; now: number | null }
   }
 }

@@ -12,11 +12,16 @@ const info = atom({ plugin: 'nebster', key: 'info' } as const, {
   percent: null,
   fiveHour: null,
   weekly: null,
+  fiveHourResetsAt: null,
+  weeklyResetsAt: null,
 } as Info)
+// The time the meters measure the windows against, ticked once a minute.
+const now = atom({ plugin: 'nebster', key: 'now' } as const, null as number | null)
 // Segment tints, a step above a dark terminal background; empty meter cells sit between.
 const TINT_A = '#1c2129'
 const TINT_B = '#232934'
 const METER_EMPTY = '#4a505a'
+const PACE_MARKER = '#e6e9ef'
 
 const pr = atom({ plugin: 'nebster', key: 'pr' } as const, null as PullRequest)
 const git = atom({ plugin: 'nebster', key: 'git' } as const, { branch: null, changed: 0, added: 0, deleted: 0 } as Git)
@@ -64,6 +69,57 @@ export const windowPercent = (
 ): number | null => {
   const window = rateLimits.find(limit => limit.kind === kind)
   return window === undefined ? null : Math.round(window.percentUsed)
+}
+
+// A rate-limit window's reset time; null when the account reports none.
+export const windowResetsAt = (
+  rateLimits: readonly { kind: string; resetsAt?: string }[],
+  kind: 'five_hour' | 'seven_day',
+): string | null => rateLimits.find(limit => limit.kind === kind)?.resetsAt ?? null
+
+const WINDOW_LENGTH_MS = { five_hour: 5 * 3600_000, seven_day: 7 * 86400_000 }
+
+// How far through its window the clock is, 0 to 1; null without a reset time.
+export const windowElapsed = (resetsAt: string | null, kind: 'five_hour' | 'seven_day', nowMs: number): number | null => {
+  if (resetsAt === null) return null
+  const remaining = Date.parse(resetsAt) - nowMs
+  if (Number.isNaN(remaining)) return null
+  return Math.min(1, Math.max(0, 1 - remaining / WINDOW_LENGTH_MS[kind]))
+}
+
+// Ahead of the clock is red (this pace runs out before the reset), within a cell of it
+// yellow, comfortably behind it green. The first 5% of a window says too little about
+// the pace, so the plain thresholds hold there.
+export const paceColor = (percent: number, elapsed: number): 'green' | 'yellow' | 'red' => {
+  if (elapsed < 0.05) return usageColor(percent)
+  const ahead = percent - elapsed * 100
+  return ahead > 10 ? 'red' : ahead >= -10 ? 'yellow' : 'green'
+}
+
+// A ten-cell meter, each cell 10%, cut by a marker where the clock stands; both round
+// to the nearest cell, so the fill and the marker compare like for like:
+// 32% used, 45% through → `▰▰▰▱▱┃▱▱▱▱▱` (before/after the marker).
+export const paceCells = (percent: number, elapsed: number): { filledBefore: string; emptyBefore: string; filledAfter: string; emptyAfter: string } => {
+  const filled = Math.min(10, Math.max(0, Math.round(percent / 10)))
+  const marker = Math.min(10, Math.max(0, Math.round(elapsed * 10)))
+  const filledBefore = Math.min(filled, marker)
+  const emptyBefore = marker - filledBefore
+  const filledAfter = Math.max(0, filled - marker)
+  return {
+    filledBefore: '▰'.repeat(filledBefore),
+    emptyBefore: '▱'.repeat(emptyBefore),
+    filledAfter: '▰'.repeat(filledAfter),
+    emptyAfter: '▱'.repeat(10 - marker - filledAfter),
+  }
+}
+
+// Time to the reset, two units at most: `42m`, `2h10m`, `3d4h`.
+export const formatUntil = (ms: number): string => {
+  const minutes = Math.max(0, Math.round(ms / 60_000))
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h${String(minutes % 60).padStart(2, '0')}m`
+  return `${Math.floor(hours / 24)}d${hours % 24}h`
 }
 
 // `git status --porcelain=v1 -b --untracked-files=all` (each new file, not its folder): the `##` head line, then one line per file;
@@ -149,7 +205,11 @@ async function refresh($: EngineInterface) {
     percent: context.percent ?? current.percent,
     fiveHour: windowPercent(rateLimits, 'five_hour') ?? current.fiveHour,
     weekly: windowPercent(rateLimits, 'seven_day') ?? current.weekly,
+    fiveHourResetsAt: windowResetsAt(rateLimits, 'five_hour') ?? current.fiveHourResetsAt,
+    weeklyResetsAt: windowResetsAt(rateLimits, 'seven_day') ?? current.weeklyResetsAt,
   }))
+  const nowMs = await $.clock.now()
+  await update($, now, () => nowMs)
 }
 
 // Before the first turn, effort and output style come from settings.
@@ -174,6 +234,8 @@ export const register: Register = on => {
     await refreshGit($).catch(() => {})
     // `gh` goes over the network, so it runs on a timer of its own: the turn never waits on it.
     $.clock.after(0, () => void refreshPullRequest($).catch(() => {}))
+    // The pace markers move with the clock, so the band redraws once a minute.
+    $.clock.every(60_000, () => void $.clock.now().then(nowMs => update($, now, () => nowMs)).catch(() => {}))
     return result
   })
 
@@ -204,6 +266,8 @@ export const register: Register = on => {
         ...current,
         fiveHour: fiveHour ?? current.fiveHour,
         weekly: weekly ?? current.weekly,
+        fiveHourResetsAt: windowResetsAt(e.rateLimits, 'five_hour') ?? current.fiveHourResetsAt,
+        weeklyResetsAt: windowResetsAt(e.rateLimits, 'seven_day') ?? current.weeklyResetsAt,
       })).catch(() => {})
     }
     return next(e)
@@ -229,7 +293,8 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, name)
-    const { model, effort, style, percent, fiveHour, weekly } = await read($, info)
+    const { model, effort, style, percent, fiveHour, weekly, fiveHourResetsAt, weeklyResetsAt } = await read($, info)
+    const nowMs = (await read($, now)) ?? Date.now()
     const { branch, changed, added, deleted } = await read($, git)
     const pullRequest = await read($, pr)
     if (e.props.hasSurvey) return next(e)
@@ -237,10 +302,10 @@ export const register: Register = on => {
     const { Box, Link, Text } = $.ui.resolve(e)
     const details = [model, effort === null ? null : capitalize(effort), style].filter(Boolean).join(' · ')
     const meters = [
-      { label: 'ctx', value: percent },
-      { label: '5h', value: fiveHour },
-      { label: '7d', value: weekly },
-    ].flatMap(meter => (meter.value === null ? [] : [{ label: meter.label, value: meter.value }]))
+      { label: 'ctx', value: percent, resetsAt: null, kind: null },
+      { label: '5h', value: fiveHour, resetsAt: fiveHourResetsAt, kind: 'five_hour' as const },
+      { label: '7d', value: weekly, resetsAt: weeklyResetsAt, kind: 'seven_day' as const },
+    ].flatMap(meter => (meter.value === null ? [] : [{ ...meter, value: meter.value }]))
 
     // Three tinted segments, Claude · usage · git: the tints group them, so no separators.
     // The top margin matches the empty row Claude Code leaves between the band and the input.
@@ -257,10 +322,29 @@ export const register: Register = on => {
         {meters.length > 0 && (
           <Box>
             {meters.map((meter, index) => {
+              const elapsed = meter.kind === null ? null : windowElapsed(meter.resetsAt, meter.kind, nowMs)
+              const lead = `${index === 0 ? ' ' : '  '}${meter.label} `
+              if (meter.kind !== null && meter.resetsAt !== null && elapsed !== null) {
+                // A rate-limit window: ten cells cut by the clock's marker, coloured by pace, then the time to its reset.
+                const cells = paceCells(meter.value, elapsed)
+                const color = paceColor(meter.value, elapsed)
+                return (
+                  <Box key={meter.label}>
+                    <Text backgroundColor={TINT_B} dimColor>{lead}</Text>
+                    <Text backgroundColor={TINT_B} color={color}>{cells.filledBefore}</Text>
+                    <Text backgroundColor={TINT_B} color={METER_EMPTY}>{cells.emptyBefore}</Text>
+                    <Text backgroundColor={TINT_B} color={PACE_MARKER} bold>┃</Text>
+                    <Text backgroundColor={TINT_B} color={color}>{cells.filledAfter}</Text>
+                    <Text backgroundColor={TINT_B} color={METER_EMPTY}>{cells.emptyAfter}</Text>
+                    <Text backgroundColor={TINT_B} color={color}>{` ${meter.value}%`}</Text>
+                    <Text backgroundColor={TINT_B} dimColor>{` ↻${formatUntil(Date.parse(meter.resetsAt) - nowMs)}`}</Text>
+                  </Box>
+                )
+              }
               const { filled, empty } = meterCells(meter.value)
               return (
                 <Box key={meter.label}>
-                  <Text backgroundColor={TINT_B} dimColor>{`${index === 0 ? ' ' : '  '}${meter.label} `}</Text>
+                  <Text backgroundColor={TINT_B} dimColor>{lead}</Text>
                   <Text backgroundColor={TINT_B} color={usageColor(meter.value)}>{filled}</Text>
                   <Text backgroundColor={TINT_B} color={METER_EMPTY}>{empty}</Text>
                   <Text backgroundColor={TINT_B} color={usageColor(meter.value)}>{` ${meter.value}%`}</Text>
