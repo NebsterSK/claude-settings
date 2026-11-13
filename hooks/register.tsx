@@ -87,13 +87,14 @@ export const windowElapsed = (resetsAt: string | null, kind: 'five_hour' | 'seve
   return Math.min(1, Math.max(0, 1 - remaining / WINDOW_LENGTH_MS[kind]))
 }
 
-// Ahead of the clock is red (this pace runs out before the reset), within a cell of it
-// yellow, comfortably behind it green. The first 5% of a window says too little about
-// the pace, so the plain thresholds hold there.
+// Read off the drawn cells, as paceCells rounds them: fill past the marker is red (this
+// pace runs out before the reset), fill up to it yellow, fill short of it green. The first
+// 5% of a window says too little about the pace, so the plain thresholds hold there.
 export const paceColor = (percent: number, elapsed: number): 'green' | 'yellow' | 'red' => {
   if (elapsed < 0.05) return usageColor(percent)
-  const ahead = percent - elapsed * 100
-  return ahead > 10 ? 'red' : ahead >= -10 ? 'yellow' : 'green'
+  const filled = Math.min(10, Math.max(0, Math.round(percent / 10)))
+  const marker = Math.min(10, Math.max(0, Math.round(elapsed * 10)))
+  return filled > marker ? 'red' : filled === marker ? 'yellow' : 'green'
 }
 
 // A ten-cell meter, each cell 10%, cut by a marker where the clock stands; both round
@@ -111,15 +112,6 @@ export const paceCells = (percent: number, elapsed: number): { filledBefore: str
     filledAfter: '▰'.repeat(filledAfter),
     emptyAfter: '▱'.repeat(10 - marker - filledAfter),
   }
-}
-
-// Time to the reset, two units at most: `42m`, `2h10m`, `3d4h`.
-export const formatUntil = (ms: number): string => {
-  const minutes = Math.max(0, Math.round(ms / 60_000))
-  if (minutes < 60) return `${minutes}m`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h${String(minutes % 60).padStart(2, '0')}m`
-  return `${Math.floor(hours / 24)}d${hours % 24}h`
 }
 
 // `git status --porcelain=v1 -b --untracked-files=all` (each new file, not its folder): the `##` head line, then one line per file;
@@ -325,7 +317,7 @@ export const register: Register = on => {
               const elapsed = meter.kind === null ? null : windowElapsed(meter.resetsAt, meter.kind, nowMs)
               const lead = `${index === 0 ? ' ' : '  '}${meter.label} `
               if (meter.kind !== null && meter.resetsAt !== null && elapsed !== null) {
-                // A rate-limit window: ten cells cut by the clock's marker, coloured by pace, then the time to its reset.
+                // A rate-limit window: ten cells cut by the clock's marker, coloured by pace.
                 const cells = paceCells(meter.value, elapsed)
                 const color = paceColor(meter.value, elapsed)
                 return (
@@ -337,7 +329,6 @@ export const register: Register = on => {
                     <Text backgroundColor={TINT_B} color={color}>{cells.filledAfter}</Text>
                     <Text backgroundColor={TINT_B} color={METER_EMPTY}>{cells.emptyAfter}</Text>
                     <Text backgroundColor={TINT_B} color={color}>{` ${meter.value}%`}</Text>
-                    <Text backgroundColor={TINT_B} dimColor>{` ↻${formatUntil(Date.parse(meter.resetsAt) - nowMs)}`}</Text>
                   </Box>
                 )
               }

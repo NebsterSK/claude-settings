@@ -84,11 +84,9 @@ describe('usage', () => {
   })
 })
 
-import { formatUntil, paceCells, paceColor, windowElapsed, windowResetsAt } from '../hooks/register'
+import { paceCells, paceColor, windowElapsed, windowResetsAt } from '../hooks/register'
 
 describe('pace', () => {
-  const HOUR = 3600_000
-
   test('reads how far through its window the clock is', () => {
     const now = Date.parse('2026-11-12T12:00:00Z')
     const limits = [{ kind: 'five_hour', percentUsed: 30, resetsAt: '2026-11-12T13:00:00Z' }]
@@ -102,6 +100,7 @@ describe('pace', () => {
   test('colours by pace against the clock', () => {
     expect(paceColor(13, 0.09)).toBe('yellow')
     expect(paceColor(78, 0.8)).toBe('yellow')
+    expect(paceColor(21, 0.26)).toBe('green')
     expect(paceColor(40, 0.2)).toBe('red')
     expect(paceColor(20, 0.5)).toBe('green')
     expect(paceColor(70, 0.02)).toBe('yellow')
@@ -111,12 +110,6 @@ describe('pace', () => {
     expect(paceCells(13, 0.09)).toEqual({ filledBefore: '▰', emptyBefore: '', filledAfter: '', emptyAfter: '▱▱▱▱▱▱▱▱▱' })
     expect(paceCells(32, 0.45)).toEqual({ filledBefore: '▰▰▰', emptyBefore: '▱▱', filledAfter: '', emptyAfter: '▱▱▱▱▱' })
     expect(paceCells(78, 0.4)).toEqual({ filledBefore: '▰▰▰▰', emptyBefore: '', filledAfter: '▰▰▰▰', emptyAfter: '▱▱' })
-  })
-
-  test('formats the time to the reset', () => {
-    expect(formatUntil(42 * 60_000)).toBe('42m')
-    expect(formatUntil(HOUR + 60_000)).toBe('1h01m')
-    expect(formatUntil(153 * HOUR)).toBe('6d9h')
   })
 })
 
